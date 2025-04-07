@@ -1,0 +1,4 @@
+{
+  "filter_paths": "lib,src/interfaces,src/external",
+  "detectors_to_exclude": "shadowing-local,naming-convention,calls-loop,missing-zero-check,block-timestamp"
+}

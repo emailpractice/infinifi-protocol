@@ -1,0 +1,23 @@
+# Compiler files
+.cache
+cache/
+out/
+
+# Ignores development broadcast logs
+!/broadcast
+/broadcast/*/31337/
+# local testnet
+/broadcast/*/3151908/
+/broadcast/**/dry-run/
+
+# Docs
+docs/
+
+# Dotenv file
+.env
+.vscode/
+lcov.info
+.idea/
+
+# abi dir
+abi/

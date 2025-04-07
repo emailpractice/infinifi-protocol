@@ -1,0 +1,44 @@
+# See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
+[profile.default]
+src = "src"
+out = 'out'
+libs = ['lib', 'script']
+cache_path = '.cache'
+evm_version = 'cancun'
+solc_version = '0.8.28'
+auto_detect_remappings = true
+optimizer = true
+optimizer_runs = 400
+remappings = []
+rpc_storage_caching = { chains = "all", endpoints = "all" }
+fs_permissions = [{ access = "read-write", path = "./deployment/configuration"}]
+
+[fmt]
+line_length = 120
+sort_imports = false
+comments = true
+tab_spaces = 4
+
+[rpc_endpoints]
+mainnet = "${MAINNET_RPC}"
+
+[etherscan]
+mainnet = { key = "${ETHERSCAN_MAINNET_API_KEY}" }
+
+[fuzz]
+runs = 256
+max_test_rejects = 65536
+seed = '0x3e8'
+dictionary_weight = 40
+include_storage = true
+include_push_bytes = true
+
+[invariant]
+runs = 256
+depth = 500
+fail_on_revert = false
+call_override = false
+dictionary_weight = 80
+include_storage = true
+include_push_bytes = true
+shrink_run_limit = 5000

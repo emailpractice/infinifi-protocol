@@ -1,0 +1,15 @@
+@openzeppelin/=lib/openzeppelin-contracts/
+@forge-std/=lib/forge-std/src/
+@solmate/=lib/solmate/
+@core/=src/core/
+@tokens/=src/tokens/
+@locking/=src/locking/
+@funding/=src/funding/
+@gateway/=src/gateway/
+@finance/=src/finance/
+@libraries/=src/libraries/
+@interfaces/=src/interfaces/
+@governance/=src/governance/
+@integrations/=src/integrations/
+@test/=test/
+@deployment/=deployment/
