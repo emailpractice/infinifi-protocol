@@ -26,19 +26,19 @@ contract FarmUnitTest is Fixture {
     }
 
     function testSetCapShouldUpdateCap() public {
-        vm.prank(farmManagerAddress);
+        vm.prank(parametersAddress);
         farm.setCap(INITIAL_CAP);
         assertEq(farm.cap(), INITIAL_CAP, "Error: Farm's cap is not updated after setCap()");
 
         uint256 newCap = 50_000_000e6;
-        vm.prank(farmManagerAddress);
+        vm.prank(parametersAddress);
 
         farm.setCap(newCap);
         assertEq(farm.cap(), newCap, "Error: Farm's cap is not updated after setCap()");
     }
 
     function testDepositShouldRevertIfCapExceeded() public {
-        vm.prank(farmManagerAddress);
+        vm.prank(parametersAddress);
         farm.setCap(INITIAL_CAP);
 
         // Try to deposit more than cap
@@ -49,7 +49,7 @@ contract FarmUnitTest is Fixture {
     }
 
     function testDepositShouldSucceedIfUnderCap() public {
-        vm.prank(farmManagerAddress);
+        vm.prank(parametersAddress);
         farm.setCap(INITIAL_CAP);
 
         // Deposit under cap
@@ -63,7 +63,7 @@ contract FarmUnitTest is Fixture {
     }
 
     function testDepositShouldSucceedIfEqualToCap() public {
-        vm.prank(farmManagerAddress);
+        vm.prank(parametersAddress);
         farm.setCap(INITIAL_CAP);
 
         // Deposit exactly at cap
@@ -75,7 +75,7 @@ contract FarmUnitTest is Fixture {
     }
 
     function testDepositShouldConsiderExistingAssets() public {
-        vm.prank(farmManagerAddress);
+        vm.prank(parametersAddress);
         farm.setCap(INITIAL_CAP);
 
         // First deposit
@@ -88,5 +88,15 @@ contract FarmUnitTest is Fixture {
         vm.prank(farmManagerAddress);
         vm.expectRevert(abi.encodeWithSelector(Farm.CapExceeded.selector, INITIAL_CAP + 100e6, INITIAL_CAP));
         farm.deposit();
+    }
+
+    function testSetMaxSlippage() public {
+        vm.expectRevert("UNAUTHORIZED");
+        farm.setMaxSlippage(0.98e18);
+
+        vm.prank(parametersAddress);
+        farm.setMaxSlippage(0.98e18);
+
+        assertEq(farm.maxSlippage(), 0.98e18, "Error: Farm's maxSlippage should be 0.98e18");
     }
 }

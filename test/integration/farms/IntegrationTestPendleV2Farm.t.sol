@@ -37,7 +37,7 @@ contract IntegrationTestPendleV2Farm is Fixture, IntegrationTestPendleCalldata {
         vm.prank(address(123456));
         farm = new PendleV2Farm(address(core), _USDC, _PENDLE_MARKET, _PENDLE_ORACLE, address(oracle));
 
-        vm.prank(governorAddress);
+        vm.prank(parametersAddress);
         farm.setPendleRouter(0x888888888889758F76e7103c6CbF23ABbF58F946);
     }
 

@@ -27,7 +27,7 @@ contract BeforeRedeemHook is IBeforeRedeemHook, CoreControlled {
 
     /// @notice returns leftover amount to be redeemed if the amount is greater than the total assets
     function beforeRedeem(address, uint256, uint256 _assetAmountOut)
-        public
+        external
         onlyCoreRole(CoreRoles.RECEIPT_TOKEN_BURNER)
     {
         // if the hook is paused, do nothing
@@ -40,10 +40,8 @@ contract BeforeRedeemHook is IBeforeRedeemHook, CoreControlled {
         require(assetEnabled, AssetNotEnabled(_asset));
         uint256 totalAssets = Accounting(accounting).totalAssetsOf(_asset, FarmTypes.LIQUID);
 
-        if (totalAssets == 0) {
-            // No assets available
-            return;
-        }
+        // No assets available
+        if (totalAssets == 0) return;
 
         (address[] memory liquidFarms, uint256[] memory votingWeights, uint256 totalPower) =
             AllocationVoting(allocationVoting).getAssetVoteWeights(_asset, FarmTypes.LIQUID);
@@ -61,13 +59,14 @@ contract BeforeRedeemHook is IBeforeRedeemHook, CoreControlled {
 
         address farm = _findOptimalRedeemFarm(liquidFarms, votingWeights, totalPower, totalAssets, _assetAmountOut);
 
+        // No optimal farm found, redeem from all farms
         if (farm == address(0)) {
-            // Redeem from all farms
             _processProportionalRedeem(liquidFarms, totalAssets, _assetAmountOut);
             return;
         }
 
         IFarm(farm).withdraw(_assetAmountOut, msg.sender);
+        IFarm(msg.sender).deposit();
     }
 
     /// @notice returns the most optimal farm to redeem from based on the current allocation and target allocation
@@ -116,5 +115,6 @@ contract BeforeRedeemHook is IBeforeRedeemHook, CoreControlled {
                 IFarm(_farms[i]).withdraw(assetsOut, msg.sender);
             }
         }
+        IFarm(msg.sender).deposit();
     }
 }

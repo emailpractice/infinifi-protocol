@@ -18,10 +18,10 @@ contract IntegrationTestAaveV3Farm is Fixture {
     // at block 21337193, (, uint256 supplyCap) = IAaveDataProvider(dataProvider).getReserveCaps(assetToken);
     // the supply cap is 3B
     uint256 public aaveV3USDCSupplyCap = 3_000_000_000e6;
-    // at block 21337193, the total supplied to aave is 1971458791900656 (1.97B)
-    uint256 public aaveV3USDCTotalSupplied = 1_971_458_791_900_656;
-    // at block 21337193, the total accrued to aave treasury is 21114203085 (21k)
-    uint256 public aaveV3USDCTreasuryAccrued = 21_114_203_085;
+    // at block 21337193, the reserveData.totalAToken is 1971459791900656 (1.97B)
+    uint256 public aaveV3USDCTotalAToken = 1_971_459_791_900_656;
+    // at block 21337193, the reserveData.accruedToTreasuryScaled is 21350751486 (21k)
+    uint256 public aaveV3USDCTreasuryAccrued = 21_350_751_486;
 
     function setUp() public override {
         vm.createSelectFork("mainnet", 21337193);
@@ -46,7 +46,7 @@ contract IntegrationTestAaveV3Farm is Fixture {
         // assert there are liquidity available on aave lending pool for aUSDC
         assertGt(ERC20(USDC).balanceOf(aUSDC), 0, "assert there are liquidity available on aave lending pool for aUSDC");
 
-        assertEq(aaveV3Farm.assets(), 1_000e6);
+        assertEq(aaveV3Farm.assets(), 0);
         assertEq(aaveV3Farm.cap(), type(uint256).max);
     }
 
@@ -64,15 +64,18 @@ contract IntegrationTestAaveV3Farm is Fixture {
     }
 
     function testMaxDeposit() public {
+        vm.prank(farmManagerAddress);
+        aaveV3Farm.deposit();
+
         uint256 maxDeposit = aaveV3Farm.maxDeposit();
         // because we set the farm cap to uint.max,
         // the max deposit is the supply cap minus the total supplied to aave
-        uint256 maxDepositAtBlock = aaveV3USDCSupplyCap - aaveV3USDCTotalSupplied - aaveV3USDCTreasuryAccrued;
+        uint256 maxDepositAtBlock = aaveV3USDCSupplyCap - aaveV3USDCTotalAToken - aaveV3USDCTreasuryAccrued;
         assertEq(maxDeposit, maxDepositAtBlock, "Max deposit amount is not correct!");
 
         // if we set the farm cap to 1500e6,
         // the max deposit should be 500e6 because we already deposited 1000e6
-        vm.prank(farmManagerAddress);
+        vm.prank(parametersAddress);
         aaveV3Farm.setCap(1_500e6);
         assertEq(aaveV3Farm.maxDeposit(), 500e6, "Max deposit amount is not correct!");
     }

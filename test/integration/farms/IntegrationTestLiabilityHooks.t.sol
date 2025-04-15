@@ -99,7 +99,7 @@ contract IntegrationTestLiabilityHooks is Fixture {
         {
             deal(address(usdc), carol, aliceAssetAmount);
             ERC20(usdc).approve(address(afterMintHook), type(uint256).max);
-            try afterMintHook.afterMint(address(0), aliceAssetAmount, 0) {
+            try afterMintHook.afterMint(address(0), aliceAssetAmount) {
                 assertTrue(true, "Failed to perform proper role check on afterMint hook");
                 // noop
             } catch {

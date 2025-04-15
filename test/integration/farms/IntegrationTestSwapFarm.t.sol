@@ -35,7 +35,7 @@ contract IntegrationTestSwapFarm is Fixture, IntegrationTestSwapCalldata {
         assertEq(block.timestamp, 1734341951, "Wrong fork block");
         assertEq(address(farm), 0xB401175F5D37305304b8ab8c20fc3a49ff2A3190, "Wrong farm deploy address");
 
-        vm.prank(governorAddress);
+        vm.prank(parametersAddress);
         farm.setEnabledRouter(0x6131B5fae19EA4f9D964eAc0408E4408b66337b5, true);
     }
 

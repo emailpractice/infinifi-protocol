@@ -13,7 +13,7 @@ contract SystemInteractionsUnitTest is Fixture {
     bool public beforeRedeemHookCalled = false;
 
     // mint & redeem hooks
-    function afterMint(address, uint256, uint256) external {
+    function afterMint(address, uint256) external {
         afterMintHookCalled = true;
     }
 

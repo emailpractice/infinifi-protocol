@@ -83,12 +83,15 @@ contract FarmRegistry is CoreControlled {
         emit AssetDisabled(block.timestamp, _asset);
     }
 
-    function addFarms(uint256 _type, address[] calldata _list) external onlyCoreRole(CoreRoles.GOVERNOR) {
+    function addFarms(uint256 _type, address[] calldata _list) external onlyCoreRole(CoreRoles.PROTOCOL_PARAMETERS) {
         _addFarms(_type, _list);
         emit FarmsAdded(block.timestamp, _type, _list);
     }
 
-    function removeFarms(uint256 _type, address[] calldata _list) external onlyCoreRole(CoreRoles.GOVERNOR) {
+    function removeFarms(uint256 _type, address[] calldata _list)
+        external
+        onlyCoreRole(CoreRoles.PROTOCOL_PARAMETERS)
+    {
         _removeFarms(_type, _list);
         emit FarmsRemoved(block.timestamp, _type, _list);
     }

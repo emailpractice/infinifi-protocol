@@ -26,15 +26,14 @@ contract ERC4626Farm is Farm {
     /// @notice Returns the total assets in the farm + the rebasing balance of the aToken
     function assets() public view override returns (uint256) {
         uint256 vaultShares = ERC20(vault).balanceOf(address(this));
-        return super.assets() + ERC4626(vault).convertToAssets(vaultShares);
+        return ERC4626(vault).convertToAssets(vaultShares);
     }
 
     function liquidity() public view override returns (uint256) {
-        return super.assets() + ERC4626(vault).maxWithdraw(address(this));
+        return ERC4626(vault).maxWithdraw(address(this));
     }
 
-    function _deposit() internal override {
-        uint256 availableAssets = ERC20(assetToken).balanceOf(address(this));
+    function _deposit(uint256 availableAssets) internal override {
         IERC20(assetToken).forceApprove(vault, availableAssets);
         ERC4626(vault).deposit(availableAssets, address(this));
     }

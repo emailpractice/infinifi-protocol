@@ -14,12 +14,15 @@ library CoreRoles {
     /// @notice Can unpause contracts after an emergency.
     bytes32 internal constant UNPAUSE = keccak256("UNPAUSE");
 
-    /// ----------- User Flow Management ---------------------
+    /// @notice can tweak protocol parameters
+    bytes32 internal constant PROTOCOL_PARAMETERS = keccak256("PROTOCOL_PARAMETERS");
+
+    /// ----------- User Flow Management -----------------------
 
     /// @notice Granted to the user entry point of the system
     bytes32 internal constant ENTRY_POINT = keccak256("ENTRY_POINT");
 
-    /// ----------- Token Management -------------------------
+    /// ----------- Token Management ---------------------------
 
     /// @notice can mint DebtToken arbitrarily
     bytes32 internal constant RECEIPT_TOKEN_MINTER = keccak256("RECEIPT_TOKEN_MINTER");
@@ -33,7 +36,7 @@ library CoreRoles {
     /// @notice can prevent transfers of LockedPositionToken
     bytes32 internal constant TRANSFER_RESTRICTOR = keccak256("TRANSFER_RESTRICTOR");
 
-    /// ----------- Funds Management & Accounting ---------------
+    /// ----------- Funds Management & Accounting --------------
 
     /// @notice contract that can allocate funds between farms
     bytes32 internal constant FARM_MANAGER = keccak256("FARM_MANAGER");

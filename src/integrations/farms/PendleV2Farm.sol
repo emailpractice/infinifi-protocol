@@ -5,10 +5,10 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {FixedPointMathLib} from "@solmate/src/utils/FixedPointMathLib.sol";
 
-import {Farm} from "@integrations/Farm.sol";
 import {IOracle} from "@interfaces/IOracle.sol";
 import {ISYToken} from "@interfaces/pendle/ISYToken.sol";
 import {CoreRoles} from "@libraries/CoreRoles.sol";
+import {Farm, IFarm} from "@integrations/Farm.sol";
 import {IPendleMarket} from "@interfaces/pendle/IPendleMarket.sol";
 import {IPendleOracle} from "@interfaces/pendle/IPendleOracle.sol";
 import {IMaturityFarm, IFarm} from "@interfaces/IMaturityFarm.sol";
@@ -23,7 +23,6 @@ contract PendleV2Farm is Farm, IMaturityFarm {
     error PTAlreadyMatured(uint256 maturity);
     error PTNotMatured(uint256 maturity);
     error SwapFailed(bytes reason);
-    error SlippageTooHigh(uint256 min, uint256 received);
 
     /// @notice Maturity of the Pendle market.
     uint256 public immutable maturity;
@@ -47,11 +46,6 @@ contract PendleV2Farm is Farm, IMaturityFarm {
     /// Since USDE has 18 decimals and USDC has 6, and the exchange rate is ~1:1,
     /// the oracle should return a value ~= 1e6
     address public immutable assetToPtUnderlyingOracle;
-
-    /// @notice Max slippage for wrapping and unwrapping assets <-> PTs.
-    /// @dev Stored as a percentage with 18 decimals of precision, of the minimum
-    /// position size compared to the previous position size (so actually 1 - maxSlippage).
-    uint256 public maxSlippage = 0.995e18; // 99.5%
 
     /// @notice address of the Pendle router used for swaps
     address public pendleRouter;
@@ -86,19 +80,27 @@ contract PendleV2Farm is Farm, IMaturityFarm {
         // read contracts and keep some immutable variables to save gas
         (syToken, ptToken,) = IPendleMarket(_pendleMarket).readTokens();
         maturity = IPendleMarket(_pendleMarket).expiry();
+
+        // set default slippage tolerance to 99.5%
+        maxSlippage = 0.995e18;
     }
 
-    function setPendleRouter(address _pendleRouter) external onlyCoreRole(CoreRoles.GOVERNOR) {
+    function setPendleRouter(address _pendleRouter) external onlyCoreRole(CoreRoles.PROTOCOL_PARAMETERS) {
         pendleRouter = _pendleRouter;
     }
 
     /// @notice Returns the total assets in the farm
     /// before maturity, the assets are the sum of assets in the farm + assets wrapped + the interpolated yield
     /// after maturity, the assets are the sum of the assets() + the value of the PTs based on oracle prices
+    /// @dev Note that the assets() function includes the current balance of assetTokens,
+    /// this is because deposit()s and withdraw()als in this farm are handled asynchronously,
+    /// as they have to go through swaps which calldata has to be generated offchain.
+    /// This farm therefore holds its reserve in 2 tokens, assetToken and ptToken.
     function assets() public view override(Farm, IFarm) returns (uint256) {
+        uint256 assetTokenBalance = IERC20(assetToken).balanceOf(address(this));
         if (block.timestamp < maturity) {
             // before maturity, interpolate yield
-            return super.assets() + totalWrappedAssets + _interpolatingYield();
+            return assetTokenBalance + totalWrappedAssets + _interpolatingYield();
         } else {
             // after maturity, return the total USDC held in the farm +
             // the PTs value if any are still held
@@ -109,18 +111,13 @@ contract PendleV2Farm is Farm, IMaturityFarm {
                 // accounting for possible max slippage
                 ptAssetsValue = _ptToAssets(balanceOfPTs).mulWadDown(maxSlippage);
             }
-            return super.assets() + ptAssetsValue;
+            return assetTokenBalance + ptAssetsValue;
         }
     }
 
     /// @notice Current liquidity of the farm is the held assetTokens
     function liquidity() public view override returns (uint256) {
-        return super.assets();
-    }
-
-    /// @notice setter for the max tolerated slippage
-    function setMaxSlippage(uint256 _maxSlippage) external onlyCoreRole(CoreRoles.GOVERNOR) {
-        maxSlippage = _maxSlippage;
+        return IERC20(assetToken).balanceOf(address(this));
     }
 
     /// @notice Wraps assetTokens as PTs.
@@ -183,7 +180,9 @@ contract PendleV2Farm is Farm, IMaturityFarm {
 
     /// @dev Deposit does nothing, assetTokens are just held on this farm.
     /// @dev See call to wrapAssetToPt() for the actual swap into Pendle PTs.
-    function _deposit() internal view override {
+    function _deposit(uint256) internal view override {}
+
+    function deposit() external view override(Farm, IFarm) onlyCoreRole(CoreRoles.FARM_MANAGER) whenNotPaused {
         // prevent deposits to this farm after maturity is reached
         require(block.timestamp < maturity, PTAlreadyMatured(maturity));
     }

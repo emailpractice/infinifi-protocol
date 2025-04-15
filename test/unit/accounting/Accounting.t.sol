@@ -25,7 +25,7 @@ contract AccountingUnitTest is Fixture {
         assertEq(accounting.totalAssets(address(usdc)), 0);
         assertEq(accounting.totalAssetsValue(), 0);
 
-        usdc.mint(address(farm1), 1000e6);
+        farm1.mockProfit(1000e6);
         assertEq(accounting.totalAssetsValue(), 1000e18, "Error: Total Assets Value is not correct"); // $, all
         assertEq(
             accounting.totalAssetsValueOf(FarmTypes.LIQUID), 1000e18, "Error: Total Liquid Assets Value is not correct"
@@ -45,7 +45,7 @@ contract AccountingUnitTest is Fixture {
             "Error: Total Illiquid Assets is not correct"
         ); // USDC, illiquid
 
-        usdc.mint(address(illiquidFarm1), 2000e6);
+        illiquidFarm1.mockProfit(2000e6);
         assertEq(accounting.totalAssetsValue(), 3000e18, "Error: Total Assets Value is not correct"); // $, all
         assertEq(
             accounting.totalAssetsValueOf(FarmTypes.LIQUID), 1000e18, "Error: Total Liquid Assets Value is not correct"

@@ -8,12 +8,12 @@ import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {Fixture} from "@test/Fixture.t.sol";
 import {MockERC20} from "@test/mock/MockERC20.sol";
 import {MockISYToken} from "@test/mock/pendle/MockISYToken.sol";
-import {MockISYTokenNoCap} from "@test/mock/pendle/MockISYTokenNoCap.sol";
+import {MockSwapRouter} from "@test/mock/MockSwapRouter.sol";
 import {MockPendleMarket} from "@test/mock/pendle/MockPendleMarket.sol";
 import {MockPendleOracle} from "@test/mock/pendle/MockPendleOracle.sol";
 import {FixedPriceOracle} from "@finance/oracles/FixedPriceOracle.sol";
-import {PendleV2Farm} from "@integrations/farms/PendleV2Farm.sol";
-import {MockSwapRouter} from "@test/mock/MockSwapRouter.sol";
+import {MockISYTokenNoCap} from "@test/mock/pendle/MockISYTokenNoCap.sol";
+import {Farm, PendleV2Farm} from "@integrations/farms/PendleV2Farm.sol";
 
 contract PendleV2FarmUnitTest is Fixture {
     MockPendleMarket pendleMarket;
@@ -70,10 +70,10 @@ contract PendleV2FarmUnitTest is Fixture {
             address(assetToPtUnderlyingOracleNoCap)
         );
 
-        vm.prank(governorAddress);
+        vm.prank(parametersAddress);
         farm.setPendleRouter(address(router));
 
-        vm.prank(governorAddress);
+        vm.prank(parametersAddress);
         farmNoCap.setPendleRouter(address(router));
     }
 
@@ -126,12 +126,12 @@ contract PendleV2FarmUnitTest is Fixture {
         assertEq(farm.maxDeposit(), 15_000e6, "Max deposit amount is not correct!");
 
         // if we set the farm cap to 1000e6, the max deposit should be 1000e6
-        vm.prank(farmManagerAddress);
+        vm.prank(parametersAddress);
         farm.setCap(1_000e6);
         assertEq(farm.maxDeposit(), 1_000e6, "Max deposit amount is not correct!");
     }
 
-    function testPendleV2NoCapMaxDeposit() public {
+    function testPendleV2NoCapMaxDeposit() public view {
         // by default, the farm cap is the cap of the SY token
         assertEq(
             farmNoCap.maxDeposit(), type(uint256).max, "Max deposit amount of Farm with no cap should be max uint256!"
@@ -245,7 +245,7 @@ contract PendleV2FarmUnitTest is Fixture {
         uint256 minAssets = 1000e6 * 0.995e18 / 1e18;
         uint256 assetsOut = ptsOut * pendleOracle.getPtToAssetRate(address(ptToken), 3600) / 1e30; // 1e30 to normalize to usdc 6 decimals
         // wrap assets
-        vm.expectRevert(abi.encodeWithSelector(PendleV2Farm.SlippageTooHigh.selector, minAssets, assetsOut));
+        vm.expectRevert(abi.encodeWithSelector(Farm.SlippageTooHigh.selector, minAssets, assetsOut));
         vm.prank(msig);
         farm.wrapAssetToPt(assetsIn, routerCalldata);
     }
@@ -299,7 +299,7 @@ contract PendleV2FarmUnitTest is Fixture {
         // give only 950e6 usdc back, which is less than 1250e6 * 0.995e18 / 1e18
         router.mockPrepareSwap(address(ptToken), address(usdc), 1250e18, 950e6);
 
-        vm.expectRevert(abi.encodeWithSelector(PendleV2Farm.SlippageTooHigh.selector, minAssets, 950e6));
+        vm.expectRevert(abi.encodeWithSelector(Farm.SlippageTooHigh.selector, minAssets, 950e6));
         vm.prank(msig);
         farm.unwrapPtToAsset(1250e18, abi.encodeWithSelector(MockSwapRouter.swap.selector));
     }
@@ -333,18 +333,6 @@ contract PendleV2FarmUnitTest is Fixture {
         // some USDC are wrapped, it should only be the assets held that are counted
         usdc.mint(address(farm), 222e6);
         assertEq(farm.liquidity(), 222e6);
-    }
-
-    function testSetMaxSlippage() public {
-        assertEq(farm.maxSlippage(), 0.995e18, "Error: SwapFarm's maxSlippage should be 0.995e18");
-
-        vm.expectRevert("UNAUTHORIZED");
-        farm.setMaxSlippage(0.98e18);
-
-        vm.prank(governorAddress);
-        farm.setMaxSlippage(0.98e18);
-
-        assertEq(farm.maxSlippage(), 0.98e18, "Error: SwapFarm's maxSlippage should be 0.98e18");
     }
 
     // GRAPH TESTS

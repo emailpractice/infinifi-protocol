@@ -6,9 +6,9 @@ import {console} from "forge-std/console.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 import {Fixture} from "@test/Fixture.t.sol";
-import {SwapFarm} from "@integrations/farms/SwapFarm.sol";
 import {MockERC20} from "@test/mock/MockERC20.sol";
 import {MockSwapRouter} from "@test/mock/MockSwapRouter.sol";
+import {Farm, SwapFarm} from "@integrations/farms/SwapFarm.sol";
 import {FixedPriceOracle} from "@finance/oracles/FixedPriceOracle.sol";
 
 contract SwapFarmUnitTest is Fixture {
@@ -26,7 +26,7 @@ contract SwapFarmUnitTest is Fixture {
         vm.label(address(farm), "SwapFarm");
         vm.label(address(router), "MockSwapRouter");
 
-        vm.prank(governorAddress);
+        vm.prank(parametersAddress);
         farm.setEnabledRouter(address(router), true);
     }
 
@@ -122,7 +122,7 @@ contract SwapFarmUnitTest is Fixture {
         uint256 assetReceived = 10e18 * 1e18 / wrapTokenOracle.price();
         uint256 minAssetsOut = 1000e6 * 0.995e18 / 1e18;
         // we expect the swap to revert because the slippage is too high
-        vm.expectRevert(abi.encodeWithSelector(SwapFarm.SlippageTooHigh.selector, minAssetsOut, assetReceived));
+        vm.expectRevert(abi.encodeWithSelector(Farm.SlippageTooHigh.selector, minAssetsOut, assetReceived));
         vm.prank(msig);
         farm.wrapAssets(1000e6, address(router), abi.encodeWithSelector(MockSwapRouter.swap.selector));
     }
@@ -189,7 +189,7 @@ contract SwapFarmUnitTest is Fixture {
         uint256 assetsReceived = 10e6;
         uint256 minAssetsOut = 500e18 * 1e18 / wrapTokenOracle.price() * 0.995e18 / 1e18;
         vm.prank(msig);
-        vm.expectRevert(abi.encodeWithSelector(SwapFarm.SlippageTooHigh.selector, minAssetsOut, assetsReceived));
+        vm.expectRevert(abi.encodeWithSelector(Farm.SlippageTooHigh.selector, minAssetsOut, assetsReceived));
         farm.unwrapAssets(500e18, address(router), abi.encodeWithSelector(MockSwapRouter.swap.selector));
     }
 
@@ -208,17 +208,5 @@ contract SwapFarmUnitTest is Fixture {
         assertEq(farm.assets(), 1000e6, "Error: SwapFarm's assets is not correct after unwrapping");
         assertEq(usdc.balanceOf(address(farm)), 1000e6, "Error: SwapFarm's assets should be transferred to farm");
         assertEq(farm.liquidity(), 1000e6, "Error: SwapFarm's liquidity should be correct after unwrapping");
-    }
-
-    function testSetMaxSlippage() public {
-        assertEq(farm.maxSlippage(), 0.995e18, "Error: SwapFarm's maxSlippage should be 0.995e18");
-
-        vm.expectRevert("UNAUTHORIZED");
-        farm.setMaxSlippage(0.98e18);
-
-        vm.prank(governorAddress);
-        farm.setMaxSlippage(0.98e18);
-
-        assertEq(farm.maxSlippage(), 0.98e18, "Error: SwapFarm's maxSlippage should be 0.98e18");
     }
 }

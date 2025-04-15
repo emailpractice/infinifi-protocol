@@ -18,17 +18,17 @@ contract FarmRegistryUnitTest is Fixture {
         vm.expectRevert("UNAUTHORIZED");
         farmRegistry.addFarms(_type, farms);
 
-        vm.prank(governorAddress);
+        vm.prank(parametersAddress);
         vm.expectRevert(abi.encodeWithSelector(FarmRegistry.AssetNotEnabled.selector, address(this), assetToken));
         farmRegistry.addFarms(_type, farms);
 
         assetToken = address(usdc);
 
-        vm.prank(governorAddress);
+        vm.prank(parametersAddress);
         farmRegistry.addFarms(_type, farms);
 
         vm.expectRevert(abi.encodeWithSelector(FarmRegistry.FarmAlreadyAdded.selector, farms[0]));
-        vm.prank(governorAddress);
+        vm.prank(parametersAddress);
         farmRegistry.addFarms(_type, farms);
     }
 
@@ -38,11 +38,11 @@ contract FarmRegistryUnitTest is Fixture {
         vm.expectRevert("UNAUTHORIZED");
         farmRegistry.removeFarms(_type, farms);
 
-        vm.prank(governorAddress);
+        vm.prank(parametersAddress);
         farmRegistry.removeFarms(_type, farms);
 
         vm.expectRevert(abi.encodeWithSelector(FarmRegistry.FarmNotFound.selector, farms[0]));
-        vm.prank(governorAddress);
+        vm.prank(parametersAddress);
         farmRegistry.removeFarms(_type, farms);
     }
 

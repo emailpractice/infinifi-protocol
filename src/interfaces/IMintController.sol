@@ -2,7 +2,9 @@
 pragma solidity 0.8.28;
 
 interface IAfterMintHook {
-    function afterMint(address _to, uint256 _assetsIn, uint256 _receiptTokensOut) external;
+    /// @param _to the address to mint to
+    /// @param _assetsIn the amount of assets deposited
+    function afterMint(address _to, uint256 _assetsIn) external;
 }
 
 /// @notice Interface for an InfiniFi Staking Controller contract

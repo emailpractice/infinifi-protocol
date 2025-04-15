@@ -38,7 +38,7 @@ contract MintController is Farm, IMintController {
     }
 
     /// @notice sets the minimum mint amount
-    function setMinMintAmount(uint256 _minMintAmount) external onlyCoreRole(CoreRoles.GOVERNOR) {
+    function setMinMintAmount(uint256 _minMintAmount) external onlyCoreRole(CoreRoles.PROTOCOL_PARAMETERS) {
         require(_minMintAmount > 0, MintAmountTooLow(_minMintAmount, 1));
         minMintAmount = _minMintAmount;
         emit MinMintAmountUpdated(block.timestamp, _minMintAmount);
@@ -59,9 +59,14 @@ contract MintController is Farm, IMintController {
         return _assetAmount.divWadDown(convertRatio);
     }
 
+    /// @notice returns the assets held by the mint controller
+    function assets() public view override returns (uint256) {
+        return ERC20(assetToken).balanceOf(address(this));
+    }
+
     /// @notice returns the liquidity of the mint controller
     function liquidity() public view override returns (uint256) {
-        return assets();
+        return ERC20(assetToken).balanceOf(address(this));
     }
 
     /// @notice introduce new receiptTokens into circulation in exchange of assetTokens
@@ -83,16 +88,31 @@ contract MintController is Farm, IMintController {
         // handle afterMint hook if any
         address _afterMintHook = afterMintHook;
         if (_afterMintHook != address(0)) {
-            IAfterMintHook(_afterMintHook).afterMint(_to, _assetAmountIn, receiptAmountOut);
+            IAfterMintHook(_afterMintHook).afterMint(_to, _assetAmountIn);
         }
 
         emit Mint(block.timestamp, _to, assetToken, _assetAmountIn, receiptAmountOut);
         return receiptAmountOut;
     }
 
-    function _deposit() internal override {} // noop
+    function _deposit(uint256) internal override {} // noop
+
+    function deposit() external override onlyCoreRole(CoreRoles.FARM_MANAGER) whenNotPaused {
+        // override to remove checks on cap & slippage
+        _deposit(0);
+    }
 
     function _withdraw(uint256 _amount, address _to) internal override {
         ERC20(assetToken).safeTransfer(_to, _amount);
+    }
+
+    function withdraw(uint256 amount, address to)
+        external
+        override
+        onlyCoreRole(CoreRoles.FARM_MANAGER)
+        whenNotPaused
+    {
+        // override to remove check on slippage
+        _withdraw(amount, to);
     }
 }

@@ -3,6 +3,9 @@ pragma solidity 0.8.28;
 
 /// @notice Interface for an InfiniFi Farm contract
 interface IFarm {
+    /// @notice emitted when there is a deposit of withdrawal from the farm
+    event AssetsUpdated(uint256 timestamp, uint256 assetsBefore, uint256 assetsAfter);
+
     // --------------------------------------------------------------------
     // Accounting
     // --------------------------------------------------------------------
@@ -23,6 +26,8 @@ interface IFarm {
     function maxDeposit() external view returns (uint256);
 
     /// @notice withdraw an amount of the asset() from the farm
+    /// @param amount Amount of assets to withdraw
+    /// @param to Address to receive the withdrawn assets
     function withdraw(uint256 amount, address to) external;
 
     /// @notice available number of assetToken() withdrawable instantly from the farm

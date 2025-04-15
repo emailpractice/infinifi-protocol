@@ -37,6 +37,7 @@ abstract contract Fixture is InfiniFiTest {
     address public msig = makeAddr("Multisig");
     address public keeper = makeAddr("Keeper");
     address public governorAddress = makeAddr("GOVERNOR_ADDRESS");
+    address public parametersAddress = makeAddr("PARAMETERS_ADDRESS");
     address public guardianAddress = makeAddr("GUARDIAN_ADDRESS");
     address public farmManagerAddress = makeAddr("FARM_MANAGER_ADDRESS");
     address public timelockAddress = makeAddr("TIMELOCK_ADDRESS");
@@ -132,6 +133,7 @@ abstract contract Fixture is InfiniFiTest {
         core.grantRole(CoreRoles.GOVERNOR, governorAddress);
         core.grantRole(CoreRoles.PAUSE, guardianAddress);
         core.grantRole(CoreRoles.UNPAUSE, guardianAddress);
+        core.grantRole(CoreRoles.PROTOCOL_PARAMETERS, parametersAddress);
         core.grantRole(CoreRoles.ENTRY_POINT, address(gateway));
         core.grantRole(CoreRoles.RECEIPT_TOKEN_MINTER, address(yieldSharing));
         core.grantRole(CoreRoles.RECEIPT_TOKEN_MINTER, address(mintController));
@@ -173,16 +175,19 @@ abstract contract Fixture is InfiniFiTest {
         address[] memory protocolFarms = new address[](2);
         protocolFarms[0] = address(mintController);
         protocolFarms[1] = address(redeemController);
+        vm.prank(parametersAddress);
         farmRegistry.addFarms(FarmTypes.PROTOCOL, protocolFarms);
 
         // farm registry
         address[] memory liquidFarms = new address[](2);
         liquidFarms[0] = address(farm1);
         liquidFarms[1] = address(farm2);
+        vm.prank(parametersAddress);
         farmRegistry.addFarms(FarmTypes.LIQUID, liquidFarms);
         address[] memory illiquidFarms = new address[](2);
         illiquidFarms[0] = address(illiquidFarm1);
         illiquidFarms[1] = address(illiquidFarm2);
+        vm.prank(parametersAddress);
         farmRegistry.addFarms(FarmTypes.MATURITY, illiquidFarms);
 
         // oracles config

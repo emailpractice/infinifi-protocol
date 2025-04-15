@@ -20,6 +20,7 @@ contract InfiniFiCore is AccessControlEnumerable {
         _setRoleAdmin(CoreRoles.GOVERNOR, CoreRoles.GOVERNOR);
         _setRoleAdmin(CoreRoles.PAUSE, CoreRoles.GOVERNOR);
         _setRoleAdmin(CoreRoles.UNPAUSE, CoreRoles.GOVERNOR);
+        _setRoleAdmin(CoreRoles.PROTOCOL_PARAMETERS, CoreRoles.GOVERNOR);
         _setRoleAdmin(CoreRoles.ENTRY_POINT, CoreRoles.GOVERNOR);
         _setRoleAdmin(CoreRoles.RECEIPT_TOKEN_MINTER, CoreRoles.GOVERNOR);
         _setRoleAdmin(CoreRoles.RECEIPT_TOKEN_BURNER, CoreRoles.GOVERNOR);

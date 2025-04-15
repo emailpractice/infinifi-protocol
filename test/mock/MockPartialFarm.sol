@@ -14,9 +14,7 @@ contract MockPartialFarm {
         assets = _assets;
     }
 
-    function deposit() external {
-        // noop
-    }
+    function deposit() external {} // noop
 
     function setAsset(address _newAsset) external {
         assetToken = _newAsset;
@@ -34,7 +32,7 @@ contract MockPartialFarm {
     // Helper method to help with changing msg.sender
     // forge prank/hoax won't work with non-EOA in this case
     function callMintHook(IAfterMintHook _hooks, uint256 _amount) external {
-        _hooks.afterMint(address(0), _amount, 0);
+        _hooks.afterMint(address(0), _amount);
     }
 
     function callRedeemHook(IBeforeRedeemHook _hooks, uint256 _amount) external {

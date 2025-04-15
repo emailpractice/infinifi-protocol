@@ -59,8 +59,8 @@ contract AaveV3FarmUnitTest is Fixture {
 
     function testAirdropTokens() public {
         usdc.mint(address(farm), 100e6);
-        assertEq(farm.assets(), 100e6, "Assets should be 100e6");
-        assertEq(farm.liquidity(), 100e6, "Liquidity should be 100e6");
+        assertEq(farm.assets(), 0, "Assets should be 0");
+        assertEq(farm.liquidity(), 0, "Liquidity should be 0");
     }
 
     function testDeposit() public {

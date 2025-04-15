@@ -25,9 +25,9 @@ contract AaveV3Farm is Farm {
         lendingPool = _aaveV3Pool;
     }
 
-    /// @notice Returns the total assets in the farm + the rebasing balance of the aToken
+    /// @notice Returns the rebasing balance of the aToken
     function assets() public view override returns (uint256) {
-        return super.assets() + ERC20(aToken).balanceOf(address(this));
+        return ERC20(aToken).balanceOf(address(this));
     }
 
     /// @notice Returns the liquidity available on aave for the assetToken
@@ -39,23 +39,20 @@ contract AaveV3Farm is Farm {
         // if aave is paused, cannot withdraw from aave
         address dataProvider = IAddressProvider(IAaveV3Pool(lendingPool).ADDRESSES_PROVIDER()).getPoolDataProvider();
         bool isAavePaused = IAaveDataProvider(dataProvider).getPaused(assetToken);
-        if (isAavePaused) return super.assets();
+        if (isAavePaused) return 0;
 
         // find the amount of assetToken held by the aToken contract
         // this is the liquidity available on aave for the assetToken
         uint256 availableLiquidity = ERC20(assetToken).balanceOf(aToken);
 
         // if there is less liquidity on aave than the total assets held by the farm,
-        // then the liquidity is the amount of USDC held by the farm (not deposited to aave)
-        // + the amount of USDC held by the aToken contract that is available to withdraw
-        return availableLiquidity < totalAssets ? availableLiquidity + super.assets() : totalAssets;
+        // then the liquidity is the amount of USDC held by the aToken contract that is available to withdraw
+        return availableLiquidity < totalAssets ? availableLiquidity : totalAssets;
     }
 
     /// @notice Deposit the assetToken to the aave v3 lending pool
     /// @dev this function deposit all the available assetToken held by the farm to the aavev3 lending pool
-    function _deposit() internal override {
-        // get the pending balance of the asset token
-        uint256 availableBalance = ERC20(assetToken).balanceOf(address(this));
+    function _deposit(uint256 availableBalance) internal override {
         // approve the lending pool to spend the asset tokens
         IERC20(assetToken).forceApprove(address(lendingPool), availableBalance);
         // trigger the deposit the asset tokens to the lending pool

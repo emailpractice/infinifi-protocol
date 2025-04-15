@@ -43,7 +43,10 @@ contract RedeemController is Farm, RedemptionPool, IRedeemController {
     /// @dev we can set this value to a higher number if we want to prevent griefing
     /// @dev as users could enqueue thousands of small amounts to "stuff" the redemption queue
     /// @param _minRedemptionAmount the minimum redemption amount
-    function setMinRedemptionAmount(uint256 _minRedemptionAmount) external onlyCoreRole(CoreRoles.GOVERNOR) {
+    function setMinRedemptionAmount(uint256 _minRedemptionAmount)
+        external
+        onlyCoreRole(CoreRoles.PROTOCOL_PARAMETERS)
+    {
         require(_minRedemptionAmount > 0, RedeemAmountTooLow(_minRedemptionAmount, 1));
         minRedemptionAmount = _minRedemptionAmount;
         emit MinRedemptionAmountUpdated(block.timestamp, _minRedemptionAmount);
@@ -64,7 +67,8 @@ contract RedeemController is Farm, RedemptionPool, IRedeemController {
     /// @notice returns the total assets of the redeem controller
     /// @dev the total assets is the sum of the assets minus the total pending claims
     function assets() public view override returns (uint256) {
-        return super.assets() - totalPendingClaims;
+        uint256 assetTokenBalance = ERC20(assetToken).balanceOf(address(this));
+        return assetTokenBalance - totalPendingClaims;
     }
 
     /// @notice returns the liquidity of the redeem controller
@@ -128,16 +132,30 @@ contract RedeemController is Farm, RedemptionPool, IRedeemController {
 
     /// @notice When depositing funds to the redeem controller, we fund the redemption queue
     /// and burn the corresponding receipt tokens.
-    function _deposit() internal override {
-        uint256 totalAssets = liquidity();
-        if (totalAssets > 0) {
-            (, uint256 receiptAmountToBurn) = _fundRedemptionQueue(totalAssets, _getReceiptToAssetConvertRatio());
+    function _deposit(uint256 assetsToDeposit) internal override {
+        if (assetsToDeposit > 0) {
+            (, uint256 receiptAmountToBurn) = _fundRedemptionQueue(assetsToDeposit, _getReceiptToAssetConvertRatio());
             ReceiptToken(receiptToken).burn(receiptAmountToBurn);
         }
     }
 
+    function deposit() external override onlyCoreRole(CoreRoles.FARM_MANAGER) whenNotPaused {
+        // override to remove checks on cap & slippage
+        _deposit(liquidity());
+    }
+
     function _withdraw(uint256 _amount, address _to) internal override {
         ERC20(assetToken).safeTransfer(_to, _amount);
+    }
+
+    function withdraw(uint256 amount, address to)
+        external
+        override
+        onlyCoreRole(CoreRoles.FARM_MANAGER)
+        whenNotPaused
+    {
+        // override to remove check on slippage
+        _withdraw(amount, to);
     }
 
     /// @notice returns the convert ratio between receiptToken and assetToken

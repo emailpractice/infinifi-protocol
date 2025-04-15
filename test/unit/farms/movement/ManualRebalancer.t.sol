@@ -12,7 +12,7 @@ contract ManualRebalancerUnitTest is Fixture {
     function setUp() public override {
         super.setUp();
 
-        usdc.mint(address(farm1), 100e6);
+        farm1.mockProfit(100e6);
     }
 
     function testInitialState() public view {
@@ -137,13 +137,10 @@ contract ManualRebalancerUnitTest is Fixture {
         MockFarm farm3 = new MockFarm(address(core), address(iusd));
         address[] memory farms = new address[](1);
         farms[0] = address(farm3);
-        vm.startPrank(governorAddress);
-        {
-            farmRegistry.enableAsset(address(iusd));
-
-            farmRegistry.addFarms(FarmTypes.MATURITY, farms);
-        }
-        vm.stopPrank();
+        vm.prank(governorAddress);
+        farmRegistry.enableAsset(address(iusd));
+        vm.prank(parametersAddress);
+        farmRegistry.addFarms(FarmTypes.MATURITY, farms);
 
         vm.prank(msig);
         vm.expectRevert(abi.encodeWithSelector(ManualRebalancer.IncompatibleAssets.selector));
@@ -205,7 +202,7 @@ contract ManualRebalancerUnitTest is Fixture {
     }
 
     function testSetCooldown() public {
-        vm.prank(governorAddress);
+        vm.prank(parametersAddress);
         manualRebalancer.setCooldown(1 days);
         assertEq(manualRebalancer.cooldown(), 1 days, "Error: manualRebalancer.cooldown() not set");
     }

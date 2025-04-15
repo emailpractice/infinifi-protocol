@@ -12,7 +12,7 @@ contract MintRedeemControllerUnitTest is Fixture {
     bool public beforeRedeemHookCalled = false;
 
     // mint & redeem hooks
-    function afterMint(address, uint256, uint256) external {
+    function afterMint(address, uint256) external {
         afterMintHookCalled = true;
     }
 
@@ -41,8 +41,12 @@ contract MintRedeemControllerUnitTest is Fixture {
         vm.stopPrank();
 
         // deploy 500 (half) of USDC to a farm
-        vm.prank(farmManagerAddress);
-        mintController.withdraw(500e6, address(farm1));
+        vm.startPrank(farmManagerAddress);
+        {
+            mintController.withdraw(500e6, address(farm1));
+            farm1.deposit();
+        }
+        vm.stopPrank();
 
         // now only 500 USDC are left in the contract while alice still has 1000 iUSD
         assertEq(usdc.balanceOf(address(mintController)), 500e6);
@@ -89,7 +93,7 @@ contract MintRedeemControllerUnitTest is Fixture {
 
     function testSetMinRedemptionCannotBeZero() public {
         assertEq(redeemController.minRedemptionAmount(), 1);
-        vm.prank(governorAddress);
+        vm.prank(parametersAddress);
         vm.expectRevert(abi.encodeWithSelector(IRedeemController.RedeemAmountTooLow.selector, 0, 1));
         redeemController.setMinRedemptionAmount(0);
     }
@@ -97,7 +101,7 @@ contract MintRedeemControllerUnitTest is Fixture {
     function testSetMinRedemptionCanBeSetByGovernor(uint256 _amount) public {
         _amount = bound(_amount, 1, 1_000e18);
         assertEq(redeemController.minRedemptionAmount(), 1, "Error: redeemController.minRedemptionAmount() should be 1");
-        vm.prank(governorAddress);
+        vm.prank(parametersAddress);
         redeemController.setMinRedemptionAmount(_amount);
         assertEq(
             redeemController.minRedemptionAmount(),
@@ -136,7 +140,7 @@ contract MintRedeemControllerUnitTest is Fixture {
     function testSetMinMintCanBeSetByGovernor(uint256 _amount) public {
         _amount = bound(_amount, 1, 1_000e18);
         assertEq(mintController.minMintAmount(), 1, "Error: mintController.minMintAmount() should be 1 at default");
-        vm.prank(governorAddress);
+        vm.prank(parametersAddress);
         mintController.setMinMintAmount(_amount);
         assertEq(
             mintController.minMintAmount(),
@@ -147,7 +151,7 @@ contract MintRedeemControllerUnitTest is Fixture {
 
     function testSetMinMintCannotBeZero() public {
         assertEq(mintController.minMintAmount(), 1, "Error: mintController.minMintAmount() should be 1 at default");
-        vm.prank(governorAddress);
+        vm.prank(parametersAddress);
         vm.expectRevert(abi.encodeWithSelector(IMintController.MintAmountTooLow.selector, 0, 1));
         mintController.setMinMintAmount(0);
     }
@@ -290,7 +294,7 @@ contract MintRedeemControllerUnitTest is Fixture {
 
     function testMintShouldRevertIfAssetAmountIsLessThanMinMintAmount(uint256 _mintAmount) public {
         _mintAmount = bound(_mintAmount, 1, 1_000_000e6);
-        vm.prank(governorAddress);
+        vm.prank(parametersAddress);
         mintController.setMinMintAmount(_mintAmount + 1);
 
         usdc.mint(address(this), _mintAmount);
@@ -348,7 +352,7 @@ contract MintRedeemControllerUnitTest is Fixture {
 
     function testMintAndStakeShouldRevertIfAssetAmountIsLessThanMinMintAmount(uint256 _mintAmount) public {
         _mintAmount = bound(_mintAmount, 1, 1_000_000e6);
-        vm.prank(governorAddress);
+        vm.prank(parametersAddress);
         mintController.setMinMintAmount(_mintAmount + 1);
 
         usdc.mint(address(this), _mintAmount);
@@ -405,7 +409,7 @@ contract MintRedeemControllerUnitTest is Fixture {
 
     function testRedeemWhenAmountTooLowShouldRevert(uint256 _redeemAmount) public {
         _redeemAmount = bound(_redeemAmount, 1, 1_000_000e6);
-        vm.prank(governorAddress);
+        vm.prank(parametersAddress);
         redeemController.setMinRedemptionAmount(_redeemAmount + 1);
 
         _mintBackedReceiptTokens(address(this), _redeemAmount);

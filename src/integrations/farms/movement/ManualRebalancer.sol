@@ -38,7 +38,7 @@ contract ManualRebalancer is CoreControlled {
     }
 
     /// @notice set cooldown
-    function setCooldown(uint256 _cooldown) external onlyCoreRole(CoreRoles.GOVERNOR) {
+    function setCooldown(uint256 _cooldown) external onlyCoreRole(CoreRoles.PROTOCOL_PARAMETERS) {
         cooldown = _cooldown;
         emit CooldownUpdated(block.timestamp, cooldown);
     }

@@ -21,7 +21,6 @@ contract SwapFarm is Farm, IMaturityFarm {
 
     error SwapFailed(bytes returnData);
     error SwapCooldown();
-    error SlippageTooHigh(uint256 minAssetsOut, uint256 assetsReceived);
     error RouterNotEnabled(address router);
 
     /// @notice Reference to the wrap token (to which assetTokens are swapped).
@@ -35,11 +34,6 @@ contract SwapFarm is Farm, IMaturityFarm {
     /// slippage to swap in & out of the farm, which acts as some kind of entrance & exit fees.
     /// Consider setting a duration that is at least long enough to earn yield that covers the swap fees.
     uint256 private immutable duration;
-
-    /// @notice Max slippage for wrapping and unwrapping assetTokens <-> wrapTokens.
-    /// @dev Stored as a percentage with 18 decimals of precision, of the minimum
-    /// position size compared to the previous position size (so actually 1 - maxSlippage).
-    uint256 public maxSlippage = 0.995e18; // 99.5%
 
     /// @notice Mapping of routers that can be used to swap assetTokens <-> wrapTokens.
     mapping(address => bool) public enabledRouters;
@@ -55,6 +49,9 @@ contract SwapFarm is Farm, IMaturityFarm {
         wrapToken = _wrapToken;
         wrapTokenOracle = _wrapTokenOracle;
         duration = _duration;
+
+        // set default slippage tolerance to 99.5%
+        maxSlippage = 0.995e18;
     }
 
     /// @notice Maturity is virtually set as "always in the future" to reflect
@@ -68,30 +65,32 @@ contract SwapFarm is Farm, IMaturityFarm {
     }
 
     /// @notice Returns the total assets in the farm
+    /// @dev Note that the assets() function includes the current balance of assetTokens,
+    /// this is because deposit()s and withdraw()als in this farm are handled asynchronously,
+    /// as they have to go through swaps which calldata has to be generated offchain.
+    /// This farm therefore holds its reserve in 2 tokens, assetToken and wrapToken.
     function assets() public view override(Farm, IFarm) returns (uint256) {
+        uint256 assetTokenBalance = IERC20(assetToken).balanceOf(address(this));
         uint256 wrapTokenAssetsValue = convertToAssets(IERC20(wrapToken).balanceOf(address(this)));
-        return super.assets() + wrapTokenAssetsValue;
+        return assetTokenBalance + wrapTokenAssetsValue;
     }
 
     /// @notice Current liquidity of the farm is the held assetTokens.
     function liquidity() public view override returns (uint256) {
-        return super.assets();
-    }
-
-    /// @notice setter for the max tolerated slippage
-    function setMaxSlippage(uint256 _maxSlippage) external onlyCoreRole(CoreRoles.GOVERNOR) {
-        maxSlippage = _maxSlippage;
+        return IERC20(assetToken).balanceOf(address(this));
     }
 
     /// @notice Allows governance to manage the whitelist of routers to be used by the
     /// keeper with FARM_SWAP_CALLER role.
-    function setEnabledRouter(address _router, bool _enabled) external onlyCoreRole(CoreRoles.GOVERNOR) {
+    function setEnabledRouter(address _router, bool _enabled) external onlyCoreRole(CoreRoles.PROTOCOL_PARAMETERS) {
         enabledRouters[_router] = _enabled;
     }
 
     /// @dev Deposit does nothing, assetTokens are just held on this farm.
     /// @dev See call to wrapAssets() for the actual swap into wrapTokens.
-    function _deposit() internal view override {}
+    function _deposit(uint256) internal view override {}
+
+    function deposit() external view override(Farm, IFarm) onlyCoreRole(CoreRoles.FARM_MANAGER) whenNotPaused {}
 
     /// @dev Withdrawal can only handle the held assetTokens (i.e. the liquidity()).
     /// @dev See call to unwrapAssets() for the actual swap out of wrapTokens.

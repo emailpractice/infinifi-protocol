@@ -310,10 +310,10 @@ contract AllocationVotingUnitTest is Fixture {
         farms[0] = address(secondFarm1);
         farms[1] = address(secondFarm2);
 
-        vm.startPrank(governorAddress);
+        vm.prank(governorAddress);
         farmRegistry.enableAsset(address(secondAsset));
+        vm.prank(parametersAddress);
         farmRegistry.addFarms(FarmTypes.LIQUID, farms);
-        vm.stopPrank();
 
         _initAliceLocking(1000e6);
         _initBobLocking(1000e6);

@@ -26,7 +26,7 @@ contract AfterMintHook is IAfterMintHook, CoreControlled {
         allocationVoting = _allocationVoting;
     }
 
-    function afterMint(address, uint256 _assetsIn, uint256) public onlyCoreRole(CoreRoles.RECEIPT_TOKEN_MINTER) {
+    function afterMint(address, uint256 _assetsIn) external onlyCoreRole(CoreRoles.RECEIPT_TOKEN_MINTER) {
         // if the hook is paused, do nothing
         if (paused()) return;
 
@@ -43,10 +43,8 @@ contract AfterMintHook is IAfterMintHook, CoreControlled {
 
         address farm = _findOptimalDepositFarm(farms, weights, totalPower, totalAssets, _assetsIn);
 
-        if (farm == address(0)) {
-            // No optimal farm found, skip the deposit
-            return;
-        }
+        // No optimal farm found, skip the deposit
+        if (farm == address(0)) return;
 
         IFarm(msg.sender).withdraw(_assetsIn, address(farm));
         IFarm(farm).deposit();

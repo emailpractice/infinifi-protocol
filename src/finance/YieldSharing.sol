@@ -83,7 +83,7 @@ contract YieldSharing is CoreControlled {
 
     /// @notice set the safety buffer size
     /// @param _safetyBufferSize the new safety buffer size
-    function setSafetyBufferSize(uint256 _safetyBufferSize) external onlyCoreRole(CoreRoles.GOVERNOR) {
+    function setSafetyBufferSize(uint256 _safetyBufferSize) external onlyCoreRole(CoreRoles.PROTOCOL_PARAMETERS) {
         safetyBufferSize = _safetyBufferSize;
         emit SafetyBufferSizeUpdated(block.timestamp, _safetyBufferSize);
     }
@@ -91,7 +91,7 @@ contract YieldSharing is CoreControlled {
     /// @notice set the performance fee and recipient
     function setPerformanceFeeAndRecipient(uint256 _percent, address _recipient)
         external
-        onlyCoreRole(CoreRoles.GOVERNOR)
+        onlyCoreRole(CoreRoles.PROTOCOL_PARAMETERS)
     {
         require(_percent < MAX_PERFORMANCE_FEE, PerformanceFeeTooHigh(_percent));
         if (_percent > 0) {
@@ -104,13 +104,13 @@ contract YieldSharing is CoreControlled {
     }
 
     /// @notice set the liquid return multiplier
-    function setLiquidReturnMultiplier(uint256 _multiplier) external onlyCoreRole(CoreRoles.GOVERNOR) {
+    function setLiquidReturnMultiplier(uint256 _multiplier) external onlyCoreRole(CoreRoles.PROTOCOL_PARAMETERS) {
         liquidReturnMultiplier = _multiplier;
         emit LiquidMultiplierUpdated(block.timestamp, _multiplier);
     }
 
     /// @notice set the target illiquid ratio
-    function setTargetIlliquidRatio(uint256 _ratio) external onlyCoreRole(CoreRoles.GOVERNOR) {
+    function setTargetIlliquidRatio(uint256 _ratio) external onlyCoreRole(CoreRoles.PROTOCOL_PARAMETERS) {
         require(_ratio <= FixedPointMathLib.WAD, TargetIlliquidRatioTooHigh(_ratio));
         targetIlliquidRatio = _ratio;
         emit TargetIlliquidRatioUpdated(block.timestamp, _ratio);

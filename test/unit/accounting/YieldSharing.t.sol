@@ -20,7 +20,7 @@ contract YieldSharingUnitTest is Fixture {
 
     function testUnaccruedYield() public {
         // airdrop usdc to a farm
-        usdc.mint(address(farm1), 1000e6); // 1000 USDC in farm
+        farm1.mockProfit(1000e6); // 1000 USDC in farm
 
         assertEq(yieldSharing.unaccruedYield(), 2000e18, "Error: Unaccrued yield does not increase after deposit"); // 1000$ in protocol
 
@@ -35,7 +35,7 @@ contract YieldSharingUnitTest is Fixture {
 
     function testAccrueProfitNoRecipients() public {
         // airdrop usdc to a farm & accrue
-        usdc.mint(address(farm1), 1000e6);
+        farm1.mockProfit(1000e6); // 1000 USDC in farm
         yieldSharing.accrue();
 
         assertEq(
@@ -60,7 +60,7 @@ contract YieldSharingUnitTest is Fixture {
         assertEq(siusd.totalAssets(), 1000e18, "Error: siusd total assets is not updated after user's mintAndStake");
 
         // simulate 10$ profit
-        usdc.mint(address(farm1), 10e6);
+        farm1.mockProfit(10e6);
         yieldSharing.accrue();
 
         assertEq(
@@ -85,7 +85,7 @@ contract YieldSharingUnitTest is Fixture {
         vm.stopPrank();
 
         // simulate 10$ profit
-        usdc.mint(address(farm1), 10e6);
+        farm1.mockProfit(10e6);
         yieldSharing.accrue();
 
         assertEq(
@@ -117,7 +117,7 @@ contract YieldSharingUnitTest is Fixture {
         gateway.mintAndStake(address(this), 500e6);
 
         // simulate 22$ profit
-        usdc.mint(address(farm1), 22e6);
+        farm1.mockProfit(22e6);
         yieldSharing.accrue();
 
         assertEq(
@@ -137,11 +137,11 @@ contract YieldSharingUnitTest is Fixture {
         testAccrueProfitSavingsAndlockingRecipients();
 
         // set safety buffer size to 10$
-        vm.prank(governorAddress);
+        vm.prank(parametersAddress);
         yieldSharing.setSafetyBufferSize(20e18);
 
         // simulate 5$ profit
-        usdc.mint(address(farm1), 5e6);
+        farm1.mockProfit(5e6);
         yieldSharing.accrue();
 
         assertEq(
@@ -151,7 +151,7 @@ contract YieldSharingUnitTest is Fixture {
         ); // 5$ to safety buffer
 
         // simulate 20$ profit
-        usdc.mint(address(farm1), 20e6);
+        farm1.mockProfit(20e6);
         yieldSharing.accrue();
 
         assertEq(
@@ -162,7 +162,7 @@ contract YieldSharingUnitTest is Fixture {
 
         // any further profits should not continue to fill the buffer
         // simulate 100$ profit
-        usdc.mint(address(farm1), 100e6);
+        farm1.mockProfit(100e6);
         yieldSharing.accrue();
 
         assertEq(
@@ -181,7 +181,7 @@ contract YieldSharingUnitTest is Fixture {
         iusd.transfer(address(this), 2000e18);
 
         // simulate 100$ loss in 1000$ farm
-        usdc.mockBurn(address(farm1), 100e6);
+        farm1.mockLoss(100e6);
         yieldSharing.accrue();
 
         assertEq(oracleIusd.price(), 0.45e18, "Error: oracleIusd price should decrease after accrue"); // 0.5$ -> 0.45$ peg
@@ -191,14 +191,14 @@ contract YieldSharingUnitTest is Fixture {
         testAccrueProfitFillsSafetyBufferFirst();
 
         // simulate 5$ loss (10$ buffer)
-        usdc.mockBurn(address(farm1), 5e6);
+        farm1.mockLoss(5e6);
         yieldSharing.accrue();
 
         assertEq(iusd.balanceOf(address(yieldSharing)), 10e18); // 5$ left in safety buffer
 
         // simulate 7$ loss that exceeds the 5$ left in buffer
         uint256 lockingBalanceBefore = lockingController.totalBalance();
-        usdc.mockBurn(address(farm1), 7e6);
+        farm1.mockLoss(7e6);
         yieldSharing.accrue();
         uint256 lockingBalanceAfter = lockingController.totalBalance();
         uint256 lockingLoss = lockingBalanceBefore - lockingBalanceAfter;
@@ -215,7 +215,7 @@ contract YieldSharingUnitTest is Fixture {
         testAccrueProfitOnlySavingRecipients();
 
         // simulate 5$ loss in farm
-        usdc.mockBurn(address(farm1), 5e6);
+        farm1.mockLoss(5e6);
         yieldSharing.accrue();
 
         assertEq(
@@ -227,7 +227,7 @@ contract YieldSharingUnitTest is Fixture {
         testAccrueProfitOnlylockingRecipients();
 
         // simulate 5$ loss in farm
-        usdc.mockBurn(address(farm1), 5e6);
+        farm1.mockLoss(5e6);
         yieldSharing.accrue();
 
         assertEq(
@@ -241,7 +241,7 @@ contract YieldSharingUnitTest is Fixture {
         testAccrueProfitSavingsAndlockingRecipients();
 
         // simulate 5$ loss in farm
-        usdc.mockBurn(address(farm1), 5e6);
+        farm1.mockLoss(5e6);
         yieldSharing.accrue();
 
         assertEq(
@@ -278,7 +278,7 @@ contract YieldSharingUnitTest is Fixture {
         usdc.balanceOf(address(farm1));
         usdc.mockBurn(address(mintController), 1100e6);
         // simulate 22$ loss in farm
-        usdc.mockBurn(address(farm1), 22e6);
+        farm1.mockLoss(22e6);
         yieldSharing.accrue();
 
         // total backing is now 400$
@@ -295,38 +295,38 @@ contract YieldSharingUnitTest is Fixture {
     }
 
     function testSetPerformanceFeeAndRecipient() public {
-        vm.prank(governorAddress);
+        vm.prank(parametersAddress);
         yieldSharing.setPerformanceFeeAndRecipient(0.05e18, address(this));
 
         // simulate 10$ profit
-        usdc.mint(address(farm1), 10e6);
+        farm1.mockProfit(10e6);
         yieldSharing.accrue();
 
         assertEq(iusd.balanceOf(address(this)), 1e18, "Error: iUSD balance of this should increase after accrue"); // received 5% of 10$
 
-        vm.prank(governorAddress);
+        vm.prank(parametersAddress);
         yieldSharing.setPerformanceFeeAndRecipient(0, address(this));
 
-        // simulate 10$ profit
-        usdc.mint(address(farm1), 20e6);
+        // simulate 20$ profit
+        farm1.mockProfit(20e6);
         yieldSharing.accrue();
 
         assertEq(iusd.balanceOf(address(this)), 1e18, "Error: iUSD balance of this should not change after accrue"); // unchanged
 
-        vm.prank(governorAddress);
+        vm.prank(parametersAddress);
         yieldSharing.setPerformanceFeeAndRecipient(0, address(0));
 
         // simulate 10$ profit
-        usdc.mint(address(farm1), 10e6);
+        farm1.mockProfit(10e6);
         yieldSharing.accrue();
 
         assertEq(iusd.balanceOf(address(this)), 1e18, "Error: iUSD balance of this should not change after accrue"); // unchanged
 
-        vm.prank(governorAddress);
+        vm.prank(parametersAddress);
         yieldSharing.setPerformanceFeeAndRecipient(0.05e18, address(this));
 
         // simulate 10$ profit
-        usdc.mint(address(farm1), 10e6);
+        farm1.mockProfit(10e6);
         yieldSharing.accrue();
 
         assertEq(iusd.balanceOf(address(this)), 2e18, "Error: iUSD balance of this should increase after accrue"); // + 5% of 10$
@@ -351,13 +351,13 @@ contract YieldSharingUnitTest is Fixture {
         uint256 liquidBalanceBefore = iusd.balanceOf(address(siusd));
         uint256 lockingBalanceBefore = lockingController.totalBalance();
 
-        vm.prank(governorAddress);
+        vm.prank(parametersAddress);
         yieldSharing.setLiquidReturnMultiplier(1.5e18); // 150%
 
         // simulate 27$ profit
         // 15$ should go to savings
         // 12$ should go to locking
-        usdc.mint(address(farm1), 27e6);
+        farm1.mockProfit(27e6);
         yieldSharing.accrue();
 
         uint256 liquidBalanceAfter = iusd.balanceOf(address(siusd));
@@ -395,13 +395,13 @@ contract YieldSharingUnitTest is Fixture {
         // currently, 50% of iUSD is in locking module, but we target 70%,
         // so we treat the 1000 iUSD in locking module as 1400 iUSD for reward
         // distributions. With the 1.2x multiplier, this means 1680 iUSD total weight.
-        vm.prank(governorAddress);
+        vm.prank(parametersAddress);
         yieldSharing.setTargetIlliquidRatio(0.7e18); // 70%
 
         // simulate 268$ profit
         // 100$ should go to savings
         // 168$ should go to locking
-        usdc.mint(address(farm1), 268e6);
+        farm1.mockProfit(268e6);
         yieldSharing.accrue();
 
         uint256 liquidBalanceAfter = iusd.balanceOf(address(siusd));

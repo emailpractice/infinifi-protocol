@@ -24,6 +24,9 @@ contract InfiniFiGatewayV1 is CoreControlled {
     /// attempting a withdrawal from the vault.
     error PendingLossesUnapplied();
 
+    /// @notice error thrown when a swap fails
+    error SwapFailed();
+
     event AddressSet(uint256 timestamp, string indexed name, address _address);
 
     /// @notice address registry of the gateway
@@ -77,6 +80,41 @@ contract InfiniFiGatewayV1 is CoreControlled {
 
         iusd.approve(address(siusd), receiptTokens);
         siusd.deposit(receiptTokens, _to);
+        return receiptTokens;
+    }
+
+    function zapInAndLock(
+        address _token,
+        uint256 _amount,
+        bytes calldata _routerData,
+        uint32 _unwindingEpochs,
+        address _to
+    ) external payable whenNotPaused returns (uint256) {
+        // pull in the tokens and approve the router if not using native ETH
+        address _router = getAddress("zapRouter");
+        if (_token != address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE)) {
+            ERC20(_token).safeTransferFrom(msg.sender, address(this), _amount);
+            ERC20(_token).forceApprove(address(_router), _amount);
+        }
+
+        // perform swap to USDC
+        (bool swapSuccess,) = _router.call{value: msg.value}(_routerData);
+        require(swapSuccess, SwapFailed());
+
+        // read the protocol addresses from storage
+        MintController mintController = MintController(getAddress("mintController"));
+        LockingController lockingController = LockingController(getAddress("lockingController"));
+        ReceiptToken iusd = ReceiptToken(getAddress("receiptToken"));
+        ERC20 usdc = ERC20(getAddress("USDC"));
+
+        // mint iUSD
+        uint256 usdcReceived = usdc.balanceOf(address(this));
+        usdc.approve(address(mintController), usdcReceived);
+        uint256 receiptTokens = mintController.mint(address(this), usdcReceived);
+
+        // lock the iUSD
+        iusd.approve(address(lockingController), receiptTokens);
+        lockingController.createPosition(receiptTokens, _unwindingEpochs, _to);
         return receiptTokens;
     }
 

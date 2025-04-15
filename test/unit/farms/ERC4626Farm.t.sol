@@ -41,7 +41,7 @@ contract ERC4626FarmUnitTest is Fixture {
     function testDeposit() public {
         usdc.mint(address(farm), 100e6);
 
-        assertEq(farm.assets(), 100e6, "Error: assets is not updated after mint");
+        assertEq(farm.assets(), 0, "Error: assets is updated after mint");
 
         vm.prank(farmManagerAddress);
         farm.deposit();

@@ -4,6 +4,7 @@ pragma solidity 0.8.28;
 import {Fixture} from "@test/Fixture.t.sol";
 import {CoreRoles} from "@libraries/CoreRoles.sol";
 import {MockERC20} from "@test/mock/MockERC20.sol";
+import {MockSwapRouter} from "@test/mock/MockSwapRouter.sol";
 import {UnwindingModule} from "@locking/UnwindingModule.sol";
 import {LockingTestBase} from "@test/unit/locking/LockingTestBase.t.sol";
 import {LockedPositionToken} from "@tokens/LockedPositionToken.sol";
@@ -315,5 +316,28 @@ contract LockingModuleUnitTest is LockingTestBase {
         _applyLosses(1000);
 
         assertTrue(lockingController.paused());
+    }
+
+    function testZapInAndLock() public {
+        MockSwapRouter router = new MockSwapRouter();
+        MockERC20 weth = new MockERC20("Wrapped Ether", "WETH");
+
+        vm.prank(governorAddress);
+        gateway.setAddress("zapRouter", address(router));
+
+        router.mockPrepareSwap(address(weth), address(usdc), 1 ether, 2000e6);
+        weth.mint(alice, 1 ether);
+
+        vm.startPrank(alice);
+        {
+            weth.approve(address(gateway), 1 ether);
+            gateway.zapInAndLock(
+                address(weth), 1 ether, abi.encodeWithSelector(MockSwapRouter.swap.selector), 10, alice
+            );
+        }
+        vm.stopPrank();
+
+        assertEq(lockingController.balanceOf(alice), 2000e18);
+        assertEq(lockingController.rewardWeight(alice), 2400e18);
     }
 }
