@@ -37,13 +37,13 @@ contract MintRedeemControllerUnitTest is Fixture {
         usdc.mint(address(alice), 1000e6);
         vm.startPrank(alice);
         usdc.approve(address(gateway), 1000e6);
-        gateway.mint(alice, 1000e6);
+        gateway.mint(alice, 1000e6);          //@seashell alice用mint存錢 拿到一點share
         vm.stopPrank();
 
         // deploy 500 (half) of USDC to a farm
         vm.startPrank(farmManagerAddress);
         {
-            mintController.withdraw(500e6, address(farm1));
+            mintController.withdraw(500e6, address(farm1));     //@seashell 不是應該用share存到farm嗎? 而且是用farm去領錢? 不是該使用者call函數自動化的完成嗎?
             farm1.deposit();
         }
         vm.stopPrank();

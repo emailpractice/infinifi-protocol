@@ -24,9 +24,6 @@ contract InfiniFiGatewayV1 is CoreControlled {
     /// attempting a withdrawal from the vault.
     error PendingLossesUnapplied();
 
-    /// @notice error thrown when a swap fails
-    error SwapFailed();
-
     event AddressSet(uint256 timestamp, string indexed name, address _address);
 
     /// @notice address registry of the gateway
@@ -59,14 +56,19 @@ contract InfiniFiGatewayV1 is CoreControlled {
     /// User interactions
     /// -------------------------------------------------------------------------------------
 
+//@seashell 用到 erc20的usdc   然後自己寫的 funding/ mintcontroller  授權給它使用用戶存起來的錢，然後計算出要給的share 並且發share
+
     function mint(address _to, uint256 _amount) external whenNotPaused returns (uint256) {
         ERC20 usdc = ERC20(getAddress("USDC"));
         MintController mintController = MintController(getAddress("mintController"));
 
-        usdc.safeTransferFrom(msg.sender, address(this), _amount);
+        usdc.safeTransferFrom(msg.sender, address(this), _amount);  //@seashell 它有檢查使用者有沒有approve 讓這行能轉錢嗎。 
         usdc.approve(address(mintController), _amount);
         return mintController.mint(_to, _amount);
     }
+
+// @ seashell mint 是直接回傳 mintController的 mint函數的share 這邊則是用變數存起來，
+// @ 然後用iusd(stake代幣)的方法去額外計算。  根據doc 把 usdc存進去換到iusd後，stake iusd 就會讓使用者最後得到siusd存進它戶頭
 
     function mintAndStake(address _to, uint256 _amount) external whenNotPaused returns (uint256) {
         MintController mintController = MintController(getAddress("mintController"));
@@ -83,41 +85,8 @@ contract InfiniFiGatewayV1 is CoreControlled {
         return receiptTokens;
     }
 
-    function zapInAndLock(
-        address _token,
-        uint256 _amount,
-        bytes calldata _routerData,
-        uint32 _unwindingEpochs,
-        address _to
-    ) external payable whenNotPaused returns (uint256) {
-        // pull in the tokens and approve the router if not using native ETH
-        address _router = getAddress("zapRouter");
-        if (_token != address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE)) {
-            ERC20(_token).safeTransferFrom(msg.sender, address(this), _amount);
-            ERC20(_token).forceApprove(address(_router), _amount);
-        }
-
-        // perform swap to USDC
-        (bool swapSuccess,) = _router.call{value: msg.value}(_routerData);
-        require(swapSuccess, SwapFailed());
-
-        // read the protocol addresses from storage
-        MintController mintController = MintController(getAddress("mintController"));
-        LockingController lockingController = LockingController(getAddress("lockingController"));
-        ReceiptToken iusd = ReceiptToken(getAddress("receiptToken"));
-        ERC20 usdc = ERC20(getAddress("USDC"));
-
-        // mint iUSD
-        uint256 usdcReceived = usdc.balanceOf(address(this));
-        usdc.approve(address(mintController), usdcReceived);
-        uint256 receiptTokens = mintController.mint(address(this), usdcReceived);
-
-        // lock the iUSD
-        iusd.approve(address(lockingController), receiptTokens);
-        lockingController.createPosition(receiptTokens, _unwindingEpochs, _to);
-        return receiptTokens;
-    }
-
+// @seashell 上面是stake iusd 得到 siusd。這邊lock 則是要lock iusd 然後 create position。 最後應該要得到liusd -1w之類的 
+// 但我這邊結尾好像只看到 receipt token 也就是iusd? 
     function mintAndLock(address _to, uint256 _amount, uint32 _unwindingEpochs)
         external
         whenNotPaused
@@ -207,6 +176,12 @@ contract InfiniFiGatewayV1 is CoreControlled {
         RedeemController(getAddress("redeemController")).claimRedemption(msg.sender);
     }
 
+// seashell 投票的主要邏輯是在 allocatingVoting 這邊只是接收使用者傳進來的參數，不太危險。
+// asset 聽說是選擇代幣  unwinding是「要投的是第幾周的farm」
+// 兩個calldata是使用者的票，一個投流動farm 一個投非流動farm。 calldata好像就是使用者傳進來的參數。
+// asset我不太確定的原因就是因為，代幣不是就三種嗎 iusd  siusd liusd 第一個是基本代幣 第二第三就代表的是流動 非流動 
+// 那不就跟call data重疊了。
+
     function vote(
         address _asset,
         uint32 _unwindingEpochs,
@@ -218,6 +193,8 @@ contract InfiniFiGatewayV1 is CoreControlled {
         );
     }
 
+//seashell 跟vote一樣，只是傳了多張票 ，用loop遍歷。 會有多張票應該是因為有1w 2w之分 因為如果是要投多個farm。
+// farm 的 array 結構應該本來就支持直接投多個
     function multiVote(
         address[] calldata _assets,
         uint32[] calldata _unwindingEpochs,
