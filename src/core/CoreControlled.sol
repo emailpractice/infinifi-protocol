@@ -13,11 +13,11 @@ abstract contract CoreControlled is Pausable {
     event CoreUpdate(address indexed oldCore, address indexed newCore);
 
     /// @notice reference to Core
-    InfiniFiCore private _core;
+    InfiniFiCore private _core;         //開發商自己的帳號地址 貓
 
     constructor(address coreAddress) {
-        _core = InfiniFiCore(coreAddress);
-    }
+        _core = InfiniFiCore(coreAddress);         //這個地址是 infiFiCore 類型的合約 ( infinificore有的內容，開發商的帳號合約都有 )   
+    }  // 我就算繼承了這個合約 呼叫_setcore  改掉的_core 也只是自己的 InfiniFiCore private _core;     而不是開發商的_core
 
     /// @notice named onlyCoreRole to prevent collision with OZ onlyRole modifier
     modifier onlyCoreRole(bytes32 role) {
