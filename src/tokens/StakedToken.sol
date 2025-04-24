@@ -62,7 +62,7 @@ contract StakedToken is ERC4626, CoreControlled {
         _revertIfThereAreUnaccruedLosses();
         return super.redeem(_amountIn, _to, _receiver);
     }
-
+//@seashell stake 代幣的話就會存款siusd。  要overide的原因是要加上when not paused
     function deposit(uint256 _amountIn, address _to) public override whenNotPaused returns (uint256) {
         return super.deposit(_amountIn, _to);
     }

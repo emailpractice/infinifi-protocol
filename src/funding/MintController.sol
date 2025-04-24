@@ -82,8 +82,8 @@ contract MintController is Farm, IMintController {
 
         // pull assets & mint receipt tokens to recipient
         // external calls to the assetToken are trusted
-        ERC20(assetToken).safeTransferFrom(msg.sender, address(this), _assetAmountIn);
-        ReceiptToken(receiptToken).mint(_to, receiptAmountOut);
+        ERC20(assetToken).safeTransferFrom(msg.sender, address(this), _assetAmountIn);  //@SEASHELL 沒有確認使用者是不是同意
+        ReceiptToken(receiptToken).mint(_to, receiptAmountOㄣut);
 
         // handle afterMint hook if any
         address _afterMintHook = afterMintHook;
@@ -94,6 +94,14 @@ contract MintController is Farm, IMintController {
         emit Mint(block.timestamp, _to, assetToken, _assetAmountIn, receiptAmountOut);
         return receiptAmountOut;
     }
+
+    /**    function assetToReceipt(uint256 _assetAmount) public view returns (uint256) {
+        uint256 assetTokenPrice = Accounting(accounting).price(assetToken);
+        uint256 receiptTokenPrice = Accounting(accounting).price(receiptToken);
+
+        uint256 convertRatio = receiptTokenPrice.divWadDown(assetTokenPrice);
+        return _assetAmount.divWadDown(convertRatio);
+    }/ */
 
     function _deposit(uint256) internal override {} // noop
 

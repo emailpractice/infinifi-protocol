@@ -69,6 +69,7 @@ contract InfiniFiGatewayV1 is CoreControlled {
 
 // @ seashell mint 是直接回傳 mintController的 mint函數的share 這邊則是用變數存起來，
 // @ 然後用iusd(stake代幣)的方法去額外計算。  根據doc 把 usdc存進去換到iusd後，stake iusd 就會讓使用者最後得到siusd存進它戶頭
+// @ _to應該是使用者自己的戶頭 最後deposit 也會把siusd存進_to
 
     function mintAndStake(address _to, uint256 _amount) external whenNotPaused returns (uint256) {
         MintController mintController = MintController(getAddress("mintController"));
