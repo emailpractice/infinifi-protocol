@@ -32,9 +32,12 @@ contract RedeemController is Farm, RedemptionPool, IRedeemController {
     /// @notice address to call in the beforeRedeem hook
     address public beforeRedeemHook;
 
-    constructor(address _core, address _assetToken, address _receiptToken, address _accounting)
-        Farm(_core, _assetToken)
-    {
+    constructor(
+        address _core,
+        address _assetToken,
+        address _receiptToken,
+        address _accounting
+    ) Farm(_core, _assetToken) {
         receiptToken = _receiptToken;
         accounting = _accounting;
     }
@@ -43,23 +46,29 @@ contract RedeemController is Farm, RedemptionPool, IRedeemController {
     /// @dev we can set this value to a higher number if we want to prevent griefing
     /// @dev as users could enqueue thousands of small amounts to "stuff" the redemption queue
     /// @param _minRedemptionAmount the minimum redemption amount
-    function setMinRedemptionAmount(uint256 _minRedemptionAmount)
-        external
-        onlyCoreRole(CoreRoles.PROTOCOL_PARAMETERS)
-    {
-        require(_minRedemptionAmount > 0, RedeemAmountTooLow(_minRedemptionAmount, 1));
+    function setMinRedemptionAmount(
+        uint256 _minRedemptionAmount
+    ) external onlyCoreRole(CoreRoles.GOVERNOR) {
+        require(
+            _minRedemptionAmount > 0,
+            RedeemAmountTooLow(_minRedemptionAmount, 1)
+        );
         minRedemptionAmount = _minRedemptionAmount;
         emit MinRedemptionAmountUpdated(block.timestamp, _minRedemptionAmount);
     }
 
     /// @notice sets the beforeRedeemHook
-    function setBeforeRedeemHook(address _beforeRedeemHook) external onlyCoreRole(CoreRoles.GOVERNOR) {
+    function setBeforeRedeemHook(
+        address _beforeRedeemHook
+    ) external onlyCoreRole(CoreRoles.GOVERNOR) {
         beforeRedeemHook = _beforeRedeemHook;
         emit BeforeRedeemHookChanged(block.timestamp, _beforeRedeemHook);
     }
 
     /// @notice calculate the amount of assetToken() out for a given `amountIn` of receiptToken()
-    function receiptToAsset(uint256 _receiptAmount) external view returns (uint256) {
+    function receiptToAsset(
+        uint256 _receiptAmount
+    ) external view returns (uint256) {
         uint256 convertRatio = _getReceiptToAssetConvertRatio();
         return _convertReceiptToAsset(_receiptAmount, convertRatio);
     }
@@ -67,8 +76,7 @@ contract RedeemController is Farm, RedemptionPool, IRedeemController {
     /// @notice returns the total assets of the redeem controller
     /// @dev the total assets is the sum of the assets minus the total pending claims
     function assets() public view override returns (uint256) {
-        uint256 assetTokenBalance = ERC20(assetToken).balanceOf(address(this));
-        return assetTokenBalance - totalPendingClaims;
+        return super.assets() - totalPendingClaims;
     }
 
     /// @notice returns the liquidity of the redeem controller
@@ -77,85 +85,124 @@ contract RedeemController is Farm, RedemptionPool, IRedeemController {
     }
 
     /// @notice redeem receiptTokens out of circulation in exchange of assetTokens
-    function redeem(address _to, uint256 _receiptAmountIn)
+    function redeem(
+        address _to,
+        uint256 _receiptAmountIn
+    )
         external
         whenNotPaused
         onlyCoreRole(CoreRoles.ENTRY_POINT)
         returns (uint256)
     {
-        require(_receiptAmountIn >= minRedemptionAmount, RedeemAmountTooLow(_receiptAmountIn, minRedemptionAmount));
+        require(
+            _receiptAmountIn >= minRedemptionAmount,
+            RedeemAmountTooLow(_receiptAmountIn, minRedemptionAmount)
+        );
 
         // get the convert ratio between receiptToken and assetToken
         // to be used in both way:
         //  - when enough liquidity available: compute how much asset tokens you get by redeeming receipt tokens
         //  - when enqueuing: compute how much receipt tokens to burn for the amount of directly available liquidity
         uint256 convertRatio = _getReceiptToAssetConvertRatio();
-        uint256 assetAmountOut = _convertReceiptToAsset(_receiptAmountIn, convertRatio);
+        /*    function _getReceiptToAssetConvertRatio() internal view returns (uint256) {
+        uint256 _assetTokenPrice = Accounting(accounting).price(assetToken);
+        uint256 _receiptTokenPrice = Accounting(accounting).price(receiptToken);
+  @seashell跟mint 的轉換是一樣的嗎 怎麼覺得mint的沒那麼單純*/
+        uint256 assetAmountOut = _convertReceiptToAsset(
+            _receiptAmountIn,
+            convertRatio
+        ); //@Seashell方法應該沒問題 但可以檢查傳入的被除的對象對不對
 
         address _beforeRedeemHook = beforeRedeemHook;
         if (_beforeRedeemHook != address(0)) {
-            IBeforeRedeemHook(_beforeRedeemHook).beforeRedeem(_to, _receiptAmountIn, assetAmountOut);
+            IBeforeRedeemHook(_beforeRedeemHook).beforeRedeem(
+                _to,
+                _receiptAmountIn,
+                assetAmountOut
+            );
         }
 
         uint256 availableAssetAmount = liquidity();
+        /*    function liquidity() public view override returns (uint256) {
+        return assets();
+    } */
+        /*    function assets() public view override returns (uint256) {
+        return super.assets() - totalPendingClaims;    //@seashell super.asset找不到人欸 會不會這邊的overide是多餘的
+    }
+ */
+        //@todo 會不會有小數點問題。 燒太多或太少?   conversion rate也是 會不會轉換中損失掉一點東西會不會轉換中損失掉一點東西
         if (assetAmountOut <= availableAssetAmount) {
             // if the amount to redeem is less than the available liquidity, we can send it directly,
             // no need for the redemption queue
             ReceiptToken(receiptToken).burnFrom(msg.sender, _receiptAmountIn);
             ERC20(assetToken).safeTransfer(_to, assetAmountOut);
-            emit Redeem(block.timestamp, _to, assetToken, _receiptAmountIn, assetAmountOut);
-            return assetAmountOut;
+            emit Redeem(
+                block.timestamp,
+                _to,
+                assetToken,
+                _receiptAmountIn,
+                assetAmountOut
+            );
+            return assetAmountOut; //@seashell 轉給用戶多少usdt
         } else {
             // send available liquidity to the recipient
             // (by computing how much receiptToken to burn for that amount of liquidity)
-            uint256 amountReceiptToBurn = _convertAssetToReceipt(availableAssetAmount, convertRatio);
-            ReceiptToken(receiptToken).burnFrom(msg.sender, amountReceiptToBurn);
+            uint256 amountReceiptToBurn = _convertAssetToReceipt(
+                availableAssetAmount, //@seashell 在流動性不足時 用liquity全部 然後轉成share去燒 去換usdt
+                convertRatio //todo @seashell  但問題是前面扣錢的時候扣的是amount-in 而不是liquity 有可能有漏洞
+            );
+            ReceiptToken(receiptToken).burnFrom( //@seashell 這裡只burn部分  但gate approve全額 。然後user有approve gate嗎?
+                    msg.sender,
+                    amountReceiptToBurn
+                );
             ERC20(assetToken).safeTransfer(_to, availableAssetAmount);
 
             // then enqueue the remaining amount in the redemption queue
-            uint256 remainingReceiptToQueue = _receiptAmountIn - amountReceiptToBurn;
-            ReceiptToken(receiptToken).transferFrom(msg.sender, address(this), remainingReceiptToQueue);
-            _enqueue(_to, remainingReceiptToQueue);
-
+            uint256 remainingReceiptToQueue = _receiptAmountIn -
+                amountReceiptToBurn;
+            ReceiptToken(receiptToken).transferFrom(
+                msg.sender,
+                address(this),
+                remainingReceiptToQueue
+            );
+            _enqueue(_to, remainingReceiptToQueue); //@seashell前面有跟合約拿錢了嗎 此處該拿多少?
+            //@seashell qunes是array 每次付完一筆 就index ++ 這樣quene[index]就知道要處理哪一筆還沒付款的單
             // emit the redeem event for the amount of liquidity available
-            emit Redeem(block.timestamp, _to, assetToken, amountReceiptToBurn, availableAssetAmount);
+            emit Redeem(
+                block.timestamp,
+                _to,
+                assetToken,
+                amountReceiptToBurn,
+                availableAssetAmount
+            );
             return availableAssetAmount;
         }
     }
 
     /// @notice Claim a redemption for a given recipient
     /// @dev can be called by anyone.
-    function claimRedemption(address _recipient) external whenNotPaused onlyCoreRole(CoreRoles.ENTRY_POINT) {
+    function claimRedemption(
+        address _recipient
+    ) external whenNotPaused onlyCoreRole(CoreRoles.ENTRY_POINT) {
         uint256 assetsToSend = _claimRedemption(_recipient);
         ERC20(assetToken).safeTransfer(_recipient, assetsToSend);
     }
 
     /// @notice When depositing funds to the redeem controller, we fund the redemption queue
     /// and burn the corresponding receipt tokens.
-    function _deposit(uint256 assetsToDeposit) internal override {
-        if (assetsToDeposit > 0) {
-            (, uint256 receiptAmountToBurn) = _fundRedemptionQueue(assetsToDeposit, _getReceiptToAssetConvertRatio());
+    function _deposit() internal override {
+        uint256 totalAssets = liquidity();
+        if (totalAssets > 0) {
+            (, uint256 receiptAmountToBurn) = _fundRedemptionQueue(
+                totalAssets,
+                _getReceiptToAssetConvertRatio()
+            );
             ReceiptToken(receiptToken).burn(receiptAmountToBurn);
         }
     }
 
-    function deposit() external override onlyCoreRole(CoreRoles.FARM_MANAGER) whenNotPaused {
-        // override to remove checks on cap & slippage
-        _deposit(liquidity());
-    }
-
     function _withdraw(uint256 _amount, address _to) internal override {
         ERC20(assetToken).safeTransfer(_to, _amount);
-    }
-
-    function withdraw(uint256 amount, address to)
-        external
-        override
-        onlyCoreRole(CoreRoles.FARM_MANAGER)
-        whenNotPaused
-    {
-        // override to remove check on slippage
-        _withdraw(amount, to);
     }
 
     /// @notice returns the convert ratio between receiptToken and assetToken
@@ -173,7 +220,10 @@ contract RedeemController is Farm, RedemptionPool, IRedeemController {
     /// @param _amountReceipt the amount of receiptToken to convert
     /// @param _convertRatio the convert ratio between receiptToken and assetToken
     /// @dev if the convertRatio is 0.8e18, then 1 receipt token is worth 1e18 * 0.8e18 / 1e18 = 0.8e18 asset tokens
-    function _convertReceiptToAsset(uint256 _amountReceipt, uint256 _convertRatio) internal pure returns (uint256) {
+    function _convertReceiptToAsset(
+        uint256 _amountReceipt,
+        uint256 _convertRatio
+    ) internal pure returns (uint256) {
         return _amountReceipt.mulWadDown(_convertRatio);
     }
 
@@ -181,7 +231,10 @@ contract RedeemController is Farm, RedemptionPool, IRedeemController {
     /// @param _amountAsset the amount of assetToken to convert
     /// @param _convertRatio the convert ratio between receiptToken and assetToken
     /// @dev if the convertRatio is 0.8e18, then 1 asset token is worth 1e18 * 1e18 / 0.8e18 = 1.25e18 receipt tokens
-    function _convertAssetToReceipt(uint256 _amountAsset, uint256 _convertRatio) internal pure returns (uint256) {
+    function _convertAssetToReceipt(
+        uint256 _amountAsset,
+        uint256 _convertRatio
+    ) internal pure returns (uint256) {
         return _amountAsset.divWadUp(_convertRatio);
     }
 }

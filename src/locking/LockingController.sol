@@ -37,15 +37,30 @@ contract LockingController is CoreControlled {
     error UnwindingInProgress();
 
     event PositionCreated(
-        uint256 indexed timestamp, address indexed user, uint256 amount, uint32 indexed unwindingEpochs
+        uint256 indexed timestamp,
+        address indexed user,
+        uint256 amount,
+        uint32 indexed unwindingEpochs
     );
     event PositionRemoved(
-        uint256 indexed timestamp, address indexed user, uint256 amount, uint32 indexed unwindingEpochs
+        uint256 indexed timestamp,
+        address indexed user,
+        uint256 amount,
+        uint32 indexed unwindingEpochs
     );
     event RewardsDeposited(uint256 indexed timestamp, uint256 amount);
     event LossesApplied(uint256 indexed timestamp, uint256 amount);
-    event BucketEnabled(uint256 indexed timestamp, uint256 bucket, address shareToken, uint256 multiplier);
-    event BucketMultiplierUpdated(uint256 indexed timestamp, uint256 bucket, uint256 multiplier);
+    event BucketEnabled(
+        uint256 indexed timestamp,
+        uint256 bucket,
+        address shareToken,
+        uint256 multiplier
+    );
+    event BucketMultiplierUpdated(
+        uint256 indexed timestamp,
+        uint256 bucket,
+        uint256 multiplier
+    );
 
     /// ----------------------------------------------------------------------------
     /// STATE
@@ -66,7 +81,11 @@ contract LockingController is CoreControlled {
     /// CONSTRUCTOR
     /// ----------------------------------------------------------------------------
 
-    constructor(address _core, address _receiptToken, address _unwindingModule) CoreControlled(_core) {
+    constructor(
+        address _core,
+        address _receiptToken,
+        address _unwindingModule
+    ) CoreControlled(_core) {
         receiptToken = _receiptToken;
         unwindingModule = _unwindingModule;
     }
@@ -76,39 +95,74 @@ contract LockingController is CoreControlled {
     /// ----------------------------------------------------------------------------
 
     /// @notice enable a new unwinding epochs duration
-    function enableBucket(uint32 _unwindingEpochs, address _shareToken, uint256 _multiplier)
-        external
-        onlyCoreRole(CoreRoles.GOVERNOR)
-    {
-        require(buckets[_unwindingEpochs].shareToken == address(0), InvalidBucket(_unwindingEpochs));
+    function enableBucket(
+        uint32 _unwindingEpochs,
+        address _shareToken,
+        uint256 _multiplier
+    ) external onlyCoreRole(CoreRoles.GOVERNOR) {
+        require(
+            buckets[_unwindingEpochs].shareToken == address(0),
+            InvalidBucket(_unwindingEpochs)
+        );
         require(_unwindingEpochs > 0, InvalidUnwindingEpochs(_unwindingEpochs));
-        require(_unwindingEpochs <= 100, InvalidUnwindingEpochs(_unwindingEpochs));
-        require(_multiplier >= FixedPointMathLib.WAD, InvalidMultiplier(_multiplier));
-        require(_multiplier <= 2 * FixedPointMathLib.WAD, InvalidMultiplier(_multiplier));
+        require(
+            _unwindingEpochs <= 100,
+            InvalidUnwindingEpochs(_unwindingEpochs)
+        );
+        require(
+            _multiplier >= FixedPointMathLib.WAD,
+            InvalidMultiplier(_multiplier)
+        );
+        require(
+            _multiplier <= 2 * FixedPointMathLib.WAD,
+            InvalidMultiplier(_multiplier)
+        );
 
         buckets[_unwindingEpochs].shareToken = _shareToken;
         buckets[_unwindingEpochs].multiplier = _multiplier;
         enabledBuckets.push(_unwindingEpochs);
-        emit BucketEnabled(block.timestamp, _unwindingEpochs, _shareToken, _multiplier);
+        emit BucketEnabled(
+            block.timestamp,
+            _unwindingEpochs,
+            _shareToken,
+            _multiplier
+        );
     }
 
     /// @notice update the multiplier of a given bucket
     /// @dev note that this won't affect the unwinding users, unless they cancel their unwinding
-    function setBucketMultiplier(uint32 _unwindingEpochs, uint256 _multiplier)
-        external
-        onlyCoreRole(CoreRoles.GOVERNOR)
-    {
+    function setBucketMultiplier(
+        uint32 _unwindingEpochs,
+        uint256 _multiplier
+    ) external onlyCoreRole(CoreRoles.GOVERNOR) {
         BucketData memory data = buckets[_unwindingEpochs];
         require(data.shareToken != address(0), InvalidBucket(_unwindingEpochs));
 
-        require(_multiplier >= FixedPointMathLib.WAD, InvalidMultiplier(_multiplier));
-        require(_multiplier <= 2 * FixedPointMathLib.WAD, InvalidMultiplier(_multiplier));
+        require(
+            _multiplier >= FixedPointMathLib.WAD,
+            InvalidMultiplier(_multiplier)
+        );
+        require(
+            _multiplier <= 2 * FixedPointMathLib.WAD,
+            InvalidMultiplier(_multiplier)
+        );
 
-        uint256 oldRewardWeight = data.totalReceiptTokens.mulWadDown(data.multiplier);
-        uint256 newRewardWeight = data.totalReceiptTokens.mulWadDown(_multiplier);
-        globalRewardWeight = globalRewardWeight + newRewardWeight - oldRewardWeight;
+        uint256 oldRewardWeight = data.totalReceiptTokens.mulWadDown(
+            data.multiplier
+        );
+        uint256 newRewardWeight = data.totalReceiptTokens.mulWadDown(
+            _multiplier
+        );
+        globalRewardWeight =
+            globalRewardWeight +
+            newRewardWeight -
+            oldRewardWeight;
         buckets[_unwindingEpochs].multiplier = _multiplier;
-        emit BucketMultiplierUpdated(block.timestamp, _unwindingEpochs, _multiplier);
+        emit BucketMultiplierUpdated(
+            block.timestamp,
+            _unwindingEpochs,
+            _multiplier
+        );
     }
 
     /// ----------------------------------------------------------------------------
@@ -133,32 +187,44 @@ contract LockingController is CoreControlled {
     }
 
     /// @notice get the reward weight of a user
-    function rewardWeightForUnwindingEpochs(address _user, uint32 _unwindingEpochs) external view returns (uint256) {
+    function rewardWeightForUnwindingEpochs(
+        address _user,
+        uint32 _unwindingEpochs
+    ) external view returns (uint256) {
         BucketData memory data = buckets[_unwindingEpochs];
 
         uint256 userShares = IERC20(data.shareToken).balanceOf(_user);
         uint256 totalShares = IERC20(data.shareToken).totalSupply();
         if (totalShares == 0) return 0;
-        uint256 totalRewardWeight = data.totalReceiptTokens.mulWadDown(data.multiplier);
+        uint256 totalRewardWeight = data.totalReceiptTokens.mulWadDown(
+            data.multiplier
+        );
         return userShares.mulDivDown(totalRewardWeight, totalShares);
     }
 
     /// @notice get the shares of a user for a given unwindingEpochs
-    function shares(address _user, uint32 _unwindingEpochs) external view returns (uint256) {
+    function shares(
+        address _user,
+        uint32 _unwindingEpochs
+    ) external view returns (uint256) {
         BucketData memory data = buckets[_unwindingEpochs];
         if (data.shareToken == address(0)) return 0;
         return IERC20(data.shareToken).balanceOf(_user);
     }
 
     /// @notice get the shares token of a given unwindingEpochs, 0 if not enabled
-    function shareToken(uint32 _unwindingEpochs) external view returns (address) {
+    function shareToken(
+        uint32 _unwindingEpochs
+    ) external view returns (address) {
         return buckets[_unwindingEpochs].shareToken;
     }
 
     /// @notice get the current exchange rate between the receiptToken and a given shareToken.
     /// This function is here for convenience, to help share token holders estimate the value of their tokens.
     /// @dev returns 0 if the _unwindingEpochs is not valid or if there are no locks for this duration
-    function exchangeRate(uint32 _unwindingEpochs) external view returns (uint256) {
+    function exchangeRate(
+        uint32 _unwindingEpochs
+    ) external view returns (uint256) {
         BucketData memory data = buckets[_unwindingEpochs];
         if (data.shareToken == address(0)) return 0;
         uint256 totalShares = IERC20(data.shareToken).totalSupply();
@@ -167,7 +233,9 @@ contract LockingController is CoreControlled {
     }
 
     /// @notice returns true if the given unwinding epochs is enabled for locking
-    function unwindingEpochsEnabled(uint32 _unwindingEpochs) external view returns (bool) {
+    function unwindingEpochsEnabled(
+        uint32 _unwindingEpochs
+    ) external view returns (bool) {
         return buckets[_unwindingEpochs].shareToken != address(0);
     }
 
@@ -175,13 +243,16 @@ contract LockingController is CoreControlled {
     /// @dev note that due to rounding down in the protocol's favor, this might be slightly
     /// above the sum of the balanceOf() of all users.
     function totalBalance() public view returns (uint256) {
-        return globalReceiptToken + UnwindingModule(unwindingModule).totalReceiptTokens();
+        return
+            globalReceiptToken +
+            UnwindingModule(unwindingModule).totalReceiptTokens();
     }
 
     /// @notice multiplier to apply to totalBalance() for computing rewards in profit distribution,
     /// Expressed as a WAD (18 decimals). Should be between [1.0e18, 2.0e18] realistically.
     function rewardMultiplier() external view returns (uint256) {
-        uint256 totalWeight = globalRewardWeight + UnwindingModule(unwindingModule).totalRewardWeight();
+        uint256 totalWeight = globalRewardWeight +
+            UnwindingModule(unwindingModule).totalRewardWeight();
         if (totalWeight == 0) return FixedPointMathLib.WAD; // defaults to 1.0
         return totalWeight.divWadDown(totalBalance());
     }
@@ -191,20 +262,37 @@ contract LockingController is CoreControlled {
     /// ----------------------------------------------------------------------------
 
     /// @notice Enter a locked position
-    function createPosition(uint256 _amount, uint32 _unwindingEpochs, address _recipient) external whenNotPaused {
+    function createPosition(
+        uint256 _amount,
+        uint32 _unwindingEpochs,
+        address _recipient
+    ) external whenNotPaused {
         if (msg.sender != unwindingModule) {
             // special case for access control here, the unwindingModule can reenter createPosition()
             // after being called by this contract's cancelUnwinding() function.
             // this exception is preferable to granting ENTRY_POINT role to the unwindingModule.
-            require(core().hasRole(CoreRoles.ENTRY_POINT, msg.sender), "UNAUTHORIZED");
+            require(
+                core().hasRole(CoreRoles.ENTRY_POINT, msg.sender),
+                "UNAUTHORIZED"
+            );
         }
 
         BucketData memory data = buckets[_unwindingEpochs];
         require(data.shareToken != address(0), InvalidBucket(_unwindingEpochs));
-        require(IERC20(receiptToken).transferFrom(msg.sender, address(this), _amount), TransferFailed());
+        require(
+            IERC20(receiptToken).transferFrom(
+                msg.sender,
+                address(this),
+                _amount
+            ),
+            TransferFailed()
+        );
 
         uint256 totalShares = IERC20(data.shareToken).totalSupply();
-        uint256 newShares = totalShares == 0 ? _amount : _amount.mulDivDown(totalShares, data.totalReceiptTokens);
+        //    function totalSupply() external view returns (uint256);
+        uint256 newShares = totalShares == 0
+            ? _amount
+            : _amount.mulDivDown(totalShares, data.totalReceiptTokens);
         uint256 newRewardWeight = _amount.mulWadDown(data.multiplier);
         data.totalReceiptTokens += _amount;
         globalRewardWeight += newRewardWeight;
@@ -212,37 +300,67 @@ contract LockingController is CoreControlled {
         buckets[_unwindingEpochs] = data;
 
         LockedPositionToken(data.shareToken).mint(_recipient, newShares);
-        emit PositionCreated(block.timestamp, _recipient, _amount, _unwindingEpochs);
+        emit PositionCreated(
+            block.timestamp,
+            _recipient,
+            _amount,
+            _unwindingEpochs
+        );
     }
 
     /// @notice Start unwinding a locked position
-    function startUnwinding(uint256 _shares, uint32 _unwindingEpochs, address _recipient)
-        external
-        whenNotPaused
-        onlyCoreRole(CoreRoles.ENTRY_POINT)
-    {
+    function startUnwinding(
+        uint256 _shares,
+        uint32 _unwindingEpochs,
+        address _recipient
+    ) external whenNotPaused onlyCoreRole(CoreRoles.ENTRY_POINT) {
         BucketData memory data = buckets[_unwindingEpochs];
         require(data.shareToken != address(0), InvalidBucket(_unwindingEpochs));
 
         uint256 totalShares = IERC20(data.shareToken).totalSupply();
-        uint256 userReceiptToken = _shares.mulDivDown(data.totalReceiptTokens, totalShares);
+        uint256 userReceiptToken = _shares.mulDivDown(
+            data.totalReceiptTokens,
+            totalShares
+        );
 
-        require(IERC20(data.shareToken).transferFrom(msg.sender, address(this), _shares), TransferFailed());
+        require(
+            IERC20(data.shareToken).transferFrom(
+                msg.sender,
+                address(this),
+                _shares
+            ),
+            TransferFailed()
+        );
         LockedPositionToken(data.shareToken).burn(_shares);
 
         UnwindingModule(unwindingModule).startUnwinding(
-            _recipient, userReceiptToken, _unwindingEpochs, userReceiptToken.mulWadDown(data.multiplier)
+            _recipient,
+            userReceiptToken,
+            _unwindingEpochs,
+            userReceiptToken.mulWadDown(data.multiplier)
         );
         IERC20(receiptToken).transfer(unwindingModule, userReceiptToken);
 
-        buckets[_unwindingEpochs].totalReceiptTokens = data.totalReceiptTokens - userReceiptToken;
-        uint256 totalRewardWeight = data.totalReceiptTokens.mulWadDown(data.multiplier);
-        uint256 rewardWeightDecrease = userReceiptToken.mulDivUp(totalRewardWeight, data.totalReceiptTokens);
+        buckets[_unwindingEpochs].totalReceiptTokens =
+            data.totalReceiptTokens -
+            userReceiptToken;
+        uint256 totalRewardWeight = data.totalReceiptTokens.mulWadDown(
+            data.multiplier
+        );
+        uint256 rewardWeightDecrease = userReceiptToken.mulDivUp(
+            totalRewardWeight,
+            data.totalReceiptTokens
+        );
         rewardWeightDecrease = _min(rewardWeightDecrease, totalRewardWeight); // up rounding could cause underflows
         globalRewardWeight -= rewardWeightDecrease;
         globalReceiptToken -= userReceiptToken;
 
-        emit PositionRemoved(block.timestamp, _recipient, userReceiptToken, _unwindingEpochs);
+        emit PositionRemoved(
+            block.timestamp,
+            _recipient,
+            userReceiptToken,
+            _unwindingEpochs
+        );
     }
 
     /// @notice Increase the unwinding period of a position
@@ -260,15 +378,26 @@ contract LockingController is CoreControlled {
         BucketData memory oldData = buckets[_oldUnwindingEpochs];
         BucketData memory newData = buckets[_newUnwindingEpochs];
 
-        require(newData.shareToken != address(0), InvalidBucket(_newUnwindingEpochs));
+        require(
+            newData.shareToken != address(0),
+            InvalidBucket(_newUnwindingEpochs)
+        );
 
         // burn position in old share tokens
         if (_shares == 0) return;
         uint256 oldTotalSupply = IERC20(oldData.shareToken).totalSupply();
-        uint256 receiptTokens = _shares.mulDivDown(oldData.totalReceiptTokens, oldTotalSupply);
+        uint256 receiptTokens = _shares.mulDivDown(
+            oldData.totalReceiptTokens,
+            oldTotalSupply
+        );
         if (receiptTokens == 0) return;
-        uint256 oldTotalRewardWeight = oldData.totalReceiptTokens.mulWadDown(oldData.multiplier);
-        uint256 oldRewardWeight = receiptTokens.mulDivUp(oldTotalRewardWeight, oldData.totalReceiptTokens);
+        uint256 oldTotalRewardWeight = oldData.totalReceiptTokens.mulWadDown(
+            oldData.multiplier
+        );
+        uint256 oldRewardWeight = receiptTokens.mulDivUp(
+            oldTotalRewardWeight,
+            oldData.totalReceiptTokens
+        );
         oldRewardWeight = _min(oldRewardWeight, oldTotalRewardWeight); // up rounding could cause underflows
         ERC20Burnable(oldData.shareToken).burnFrom(msg.sender, _shares);
         oldData.totalReceiptTokens -= receiptTokens;
@@ -276,35 +405,55 @@ contract LockingController is CoreControlled {
 
         // mint position in new share tokens
         uint256 newTotalSupply = IERC20(newData.shareToken).totalSupply();
-        uint256 newShares =
-            newTotalSupply == 0 ? receiptTokens : receiptTokens.mulDivDown(newTotalSupply, newData.totalReceiptTokens);
+        uint256 newShares = newTotalSupply == 0
+            ? receiptTokens
+            : receiptTokens.mulDivDown(
+                newTotalSupply,
+                newData.totalReceiptTokens
+            );
         uint256 newRewardWeight = receiptTokens.mulWadDown(newData.multiplier);
         LockedPositionToken(newData.shareToken).mint(_recipient, newShares);
         newData.totalReceiptTokens += receiptTokens;
         buckets[_newUnwindingEpochs] = newData;
 
         // update global reward weight
-        globalRewardWeight = globalRewardWeight + newRewardWeight - oldRewardWeight;
+        globalRewardWeight =
+            globalRewardWeight +
+            newRewardWeight -
+            oldRewardWeight;
 
-        emit PositionRemoved(block.timestamp, _recipient, receiptTokens, _oldUnwindingEpochs);
-        emit PositionCreated(block.timestamp, _recipient, receiptTokens, _newUnwindingEpochs);
+        emit PositionRemoved(
+            block.timestamp,
+            _recipient,
+            receiptTokens,
+            _oldUnwindingEpochs
+        );
+        emit PositionCreated(
+            block.timestamp,
+            _recipient,
+            receiptTokens,
+            _newUnwindingEpochs
+        );
     }
 
     /// @notice Cancel an ongoing unwinding. All checks are performed by the Unwinding module.
-    function cancelUnwinding(address _user, uint256 _unwindingTimestamp, uint32 _newUnwindingEpochs)
-        external
-        whenNotPaused
-        onlyCoreRole(CoreRoles.ENTRY_POINT)
-    {
-        UnwindingModule(unwindingModule).cancelUnwinding(_user, _unwindingTimestamp, _newUnwindingEpochs);
+    function cancelUnwinding(
+        address _user,
+        uint256 _unwindingTimestamp,
+        uint32 _newUnwindingEpochs
+    ) external whenNotPaused onlyCoreRole(CoreRoles.ENTRY_POINT) {
+        UnwindingModule(unwindingModule).cancelUnwinding(
+            _user,
+            _unwindingTimestamp,
+            _newUnwindingEpochs
+        );
     }
 
     /// @notice Withdraw after an unwinding period has completed
-    function withdraw(address _user, uint256 _unwindingTimestamp)
-        external
-        whenNotPaused
-        onlyCoreRole(CoreRoles.ENTRY_POINT)
-    {
+    function withdraw(
+        address _user,
+        uint256 _unwindingTimestamp
+    ) external whenNotPaused onlyCoreRole(CoreRoles.ENTRY_POINT) {
         UnwindingModule(unwindingModule).withdraw(_unwindingTimestamp, _user);
     }
 
@@ -312,11 +461,10 @@ contract LockingController is CoreControlled {
     /// INTERNAL UTILS
     /// ----------------------------------------------------------------------------
 
-    function _userSumAcrossUnwindingEpochs(address _user, function(BucketData memory) view returns (uint256) _getter)
-        internal
-        view
-        returns (uint256)
-    {
+    function _userSumAcrossUnwindingEpochs(
+        address _user,
+        function(BucketData memory) view returns (uint256) _getter
+    ) internal view returns (uint256) {
         uint256 weight;
         uint256 nBuckets = enabledBuckets.length;
         for (uint256 i = 0; i < nBuckets; i++) {
@@ -331,11 +479,15 @@ contract LockingController is CoreControlled {
         return weight;
     }
 
-    function _totalRewardWeightGetter(BucketData memory data) internal pure returns (uint256) {
+    function _totalRewardWeightGetter(
+        BucketData memory data
+    ) internal pure returns (uint256) {
         return data.totalReceiptTokens.mulWadDown(data.multiplier);
     }
 
-    function _totalReceiptTokensGetter(BucketData memory data) internal pure returns (uint256) {
+    function _totalReceiptTokensGetter(
+        BucketData memory data
+    ) internal pure returns (uint256) {
         return data.totalReceiptTokens;
     }
 
@@ -348,21 +500,39 @@ contract LockingController is CoreControlled {
     /// ----------------------------------------------------------------------------
 
     /// @notice Deposit rewards into the locking module
-    function depositRewards(uint256 _amount) external onlyCoreRole(CoreRoles.FINANCE_MANAGER) {
+    function depositRewards(
+        uint256 _amount
+    ) external onlyCoreRole(CoreRoles.FINANCE_MANAGER) {
         if (_amount == 0) return;
 
         emit RewardsDeposited(block.timestamp, _amount);
 
-        require(IERC20(receiptToken).transferFrom(msg.sender, address(this), _amount), TransferFailed());
+        require(
+            IERC20(receiptToken).transferFrom(
+                msg.sender,
+                address(this),
+                _amount
+            ),
+            TransferFailed()
+        );
 
         // compute split between locking users & unwinding users
         uint256 _globalRewardWeight = globalRewardWeight;
-        uint256 unwindingRewardWeight = UnwindingModule(unwindingModule).totalRewardWeight();
-        uint256 unwindingRewards =
-            _amount.mulDivDown(unwindingRewardWeight, _globalRewardWeight + unwindingRewardWeight);
+        uint256 unwindingRewardWeight = UnwindingModule(unwindingModule)
+            .totalRewardWeight();
+        uint256 unwindingRewards = _amount.mulDivDown(
+            unwindingRewardWeight,
+            _globalRewardWeight + unwindingRewardWeight
+        );
         if (unwindingRewards > 0) {
             UnwindingModule(unwindingModule).depositRewards(unwindingRewards);
-            require(IERC20(receiptToken).transfer(unwindingModule, unwindingRewards), TransferFailed());
+            require(
+                IERC20(receiptToken).transfer(
+                    unwindingModule,
+                    unwindingRewards
+                ),
+                TransferFailed()
+            );
             _amount -= unwindingRewards;
 
             // if there are no rewards to distribute, do nothing
@@ -383,15 +553,21 @@ contract LockingController is CoreControlled {
 
             // increase total locked tokens
             uint256 epochTotalReceiptToken = data.totalReceiptTokens;
-            uint256 totalRewardWeight = epochTotalReceiptToken.mulWadDown(data.multiplier);
-            uint256 allocation = _amount.mulDivDown(totalRewardWeight, _globalRewardWeight);
+            uint256 totalRewardWeight = epochTotalReceiptToken.mulWadDown(
+                data.multiplier
+            );
+            uint256 allocation = _amount.mulDivDown(
+                totalRewardWeight,
+                _globalRewardWeight
+            );
             if (allocation == 0) continue;
 
             data.totalReceiptTokens = epochTotalReceiptToken + allocation;
             _receiptTokensIncrement += allocation;
 
             // increase reward weight proportionally
-            uint256 newTotalRewardWeight = (epochTotalReceiptToken + allocation).mulWadDown(data.multiplier);
+            uint256 newTotalRewardWeight = (epochTotalReceiptToken + allocation)
+                .mulWadDown(data.multiplier);
             _rewardWeightIncrement += newTotalRewardWeight - totalRewardWeight;
         }
 
@@ -400,15 +576,21 @@ contract LockingController is CoreControlled {
     }
 
     /// @notice Apply losses to the locking module
-    function applyLosses(uint256 _amount) external onlyCoreRole(CoreRoles.FINANCE_MANAGER) {
+    function applyLosses(
+        uint256 _amount
+    ) external onlyCoreRole(CoreRoles.FINANCE_MANAGER) {
         if (_amount == 0) return;
 
         emit LossesApplied(block.timestamp, _amount);
 
         // compute split between locking users & unwinding users
-        uint256 unwindingBalance = UnwindingModule(unwindingModule).totalReceiptTokens();
+        uint256 unwindingBalance = UnwindingModule(unwindingModule)
+            .totalReceiptTokens();
         uint256 _globalReceiptToken = globalReceiptToken;
-        uint256 amountToUnwinding = _amount.mulDivDown(unwindingBalance, unwindingBalance + _globalReceiptToken);
+        uint256 amountToUnwinding = _amount.mulDivDown(
+            unwindingBalance,
+            unwindingBalance + _globalReceiptToken
+        );
         UnwindingModule(unwindingModule).applyLosses(amountToUnwinding);
         _amount -= amountToUnwinding;
 
@@ -425,16 +607,23 @@ contract LockingController is CoreControlled {
             // slash principal
             uint256 epochTotalReceiptToken = data.totalReceiptTokens;
             if (epochTotalReceiptToken == 0) continue;
-            uint256 allocation = epochTotalReceiptToken.mulDivUp(_amount, _globalReceiptToken);
+            uint256 allocation = epochTotalReceiptToken.mulDivUp(
+                _amount,
+                _globalReceiptToken
+            );
             allocation = _min(allocation, epochTotalReceiptToken); // up rounding could cause underflows
             data.totalReceiptTokens = epochTotalReceiptToken - allocation;
             globalReceiptTokenDecrement += allocation;
 
             // slash reward weight
             uint256 multiplier = data.multiplier;
-            uint256 epochTotalRewardWeight = epochTotalReceiptToken.mulWadDown(multiplier);
-            uint256 newEpochTotalRewardWeight = (epochTotalReceiptToken - allocation).mulWadDown(multiplier);
-            uint256 rewardWeightDecrease = epochTotalRewardWeight - newEpochTotalRewardWeight;
+            uint256 epochTotalRewardWeight = epochTotalReceiptToken.mulWadDown(
+                multiplier
+            );
+            uint256 newEpochTotalRewardWeight = (epochTotalReceiptToken -
+                allocation).mulWadDown(multiplier);
+            uint256 rewardWeightDecrease = epochTotalRewardWeight -
+                newEpochTotalRewardWeight;
             _globalRewardWeight -= rewardWeightDecrease;
         }
 
@@ -446,8 +635,10 @@ contract LockingController is CoreControlled {
         // Resolving the situation will require a protocol upgrade, as the share prices of the
         // circulating locked tokens are now 0, and/or the slashingIndex in the unwindingModule is 0.
         {
-            bool unwindingWipedOut = amountToUnwinding > 0 && amountToUnwinding == unwindingBalance;
-            bool globalWipedOut = globalReceiptTokenDecrement > 0 && globalReceiptTokenDecrement == _globalReceiptToken;
+            bool unwindingWipedOut = amountToUnwinding > 0 &&
+                amountToUnwinding == unwindingBalance;
+            bool globalWipedOut = globalReceiptTokenDecrement > 0 &&
+                globalReceiptTokenDecrement == _globalReceiptToken;
 
             if (unwindingWipedOut || globalWipedOut) _pause();
         }
