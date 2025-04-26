@@ -234,12 +234,13 @@ contract InfiniFiGatewayV1 is CoreControlled {
     }
 
     function withdraw(uint256 _unwindingTimestamp) external whenNotPaused {
-        _revertIfThereAreUnaccruedLosses();
+        _revertIfThereAreUnaccruedLosses(); // 農場裡的總資產跌價了之後，應該要收回一些使用者的 shar
         LockingController(getAddress("lockingController")).withdraw(
             msg.sender,
             _unwindingTimestamp
         );
-    } // 為甚麼這邊是用get address 不是預先寫好實體 lockingController
+    } 
+    // 為甚麼這邊是用get address 不是預先寫好實體 lockingController
 
     /*    function _revertIfThereAreUnaccruedLosses() internal view {
         YieldSharing yieldSharing = YieldSharing(getAddress("yieldSharing"));
@@ -250,7 +251,7 @@ contract InfiniFiGatewayV1 is CoreControlled {
         uint256 receiptTokenPrice = Accounting(accounting).price(receiptToken);
         uint256 assets = Accounting(accounting).totalAssetsValue(); // returns assets in USD
 
-        uint256 assetsInReceiptTokens = assets.divWadDown(receiptTokenPrice);
+        uint256 assetsInReceiptTokens = assets.divWadDown(receiptTokenPrice);          //todo 檢查asset算法 除法
 
         return int256(assetsInReceiptTokens) - int256(ReceiptToken(receiptToken).totalSupply());
     }
@@ -294,7 +295,7 @@ contract InfiniFiGatewayV1 is CoreControlled {
         emit Withdrawal(block.timestamp, _startUnwindingTimestamp, _owner);
     } */
 
-    //@seashell 不用等unwinding 也不用算yield (withdraw才要)   是吃使用者的iusd然後還給他USDC嗎?
+    //@seashell 不用等unwinding 也不用算yield (withdraw才要)   是吃使用者的iusd然後還給他asset token ( 但我還不知道是什麼 可能是穩定幣或是uth吧) 但大概不會是直接能換回usd defi協議好像不太處理法幣
     function redeem(
         address _to,
         uint256 _amount
@@ -323,7 +324,7 @@ contract InfiniFiGatewayV1 is CoreControlled {
     // 那不就跟call data重疊了。
 
     function vote(
-        address _asset,
+        address _asset, 
         uint32 _unwindingEpochs,
         AllocationVoting.AllocationVote[] calldata _liquidVotes,
         AllocationVoting.AllocationVote[] calldata _illiquidVotes

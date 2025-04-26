@@ -56,7 +56,7 @@ abstract contract Farm is CoreControlled, IFarm {
     // Accounting
     // --------------------------------------------------------------------
 
-    function assets() public view virtual returns (uint256);
+    function assets() public view virtual returns (uint256);   //@ liquity 函數中用到的 super.assets方法
 
     // --------------------------------------------------------------------
     // Adapter logic

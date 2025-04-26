@@ -239,6 +239,7 @@ contract UnwindingModule is CoreControlled {
         emit UnwindingCanceled(block.timestamp, _user, _startUnwindingTimestamp, _newUnwindingEpochs);
     }
 
+//@seashell 應該是使用者申請解鎖 然後在解鎖的邏輯裡面就把使用的 liusd 燒掉。 阿等winding期過了之後，這邊就可以withdraw出iusd 
     /// @notice Withdraw after an unwinding period has completed
     function withdraw(uint256 _startUnwindingTimestamp, address _owner)
         external
@@ -262,7 +263,7 @@ contract UnwindingModule is CoreControlled {
         totalShares -= position.shares;
         totalReceiptTokens -= userBalance;
 
-        require(IERC20(receiptToken).transfer(_owner, userBalance), TransferFailed());
+        require(IERC20(receiptToken).transfer(_owner, userBalance), TransferFailed()); //轉iusd給使用者 
         emit Withdrawal(block.timestamp, _startUnwindingTimestamp, _owner);
     }
 
