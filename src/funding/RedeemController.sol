@@ -76,7 +76,8 @@ contract RedeemController is Farm, RedemptionPool, IRedeemController {
     /// @notice returns the total assets of the redeem controller
     /// @dev the total assets is the sum of the assets minus the total pending claims
     function assets() public view override returns (uint256) {
-        return super.assets() - totalPendingClaims;    
+        return super.assets() - totalPendingClaims;
+
     }
 
     /// @notice returns the liquidity of the redeem controller
@@ -148,23 +149,29 @@ contract RedeemController is Farm, RedemptionPool, IRedeemController {
             // send available liquidity to the recipient
             // (by computing how much receiptToken to burn for that amount of liquidity)
             uint256 amountReceiptToBurn = _convertAssetToReceipt(
-                availableAssetAmount, //@seashell 在流動性不足時 用liquity全部 然後轉成share去燒 去換usdt
-                convertRatio //todo @seashell  但問題是前面扣錢的時候扣的是amount-in 而不是liquity 有可能有漏洞
+                availableAssetAmount, //@seashell 在流動性不足時 用liquidity全部 然後轉成share去燒 去換usdt
+                convertRatio //todo @seashell  但問題是前面扣錢的時候扣的是amount-in 但這邊卻只燒liquidity 有可能有漏洞
             );
-            ReceiptToken(receiptToken).burnFrom( //@seashell 這裡只burn部分  但gate approve全額 。然後user有approve gate嗎?
+            ReceiptToken(receiptToken).burnFrom( //@seashell 這裡只burn部分  但gate approve全額。
+                    //@ 我可以先趁流動性不足的時候呼叫一下redeem 然後redeem controller就會有多的 來自gate的 approve額度沒消耗完
+                    // 如果redeemController 還有其他函數有漏洞 就可以利用那個函數 A Gate的錢
+
+                    // 1. 這個函數得要自己從gatE多拿錢 而且還要有額外的漏洞可以洩漏自己的錢給外部 難度有點高  
+                    // 2. claimRedemption   transferto 
+                    // 3. 
                     msg.sender,
                     amountReceiptToBurn
                 );
-            ERC20(assetToken).safeTransfer(_to, availableAssetAmount);
-
+            ERC20(assetToken).safeTransfer(_to, availableAssetAmount); //僅剩的asset都轉使用者
+            //還欠user 一些receipt
             // then enqueue the remaining amount in the redemption queue
             uint256 remainingReceiptToQueue = _receiptAmountIn -
                 amountReceiptToBurn;
-            ReceiptToken(receiptToken).transferFrom(
-                msg.sender,
-                address(this),
-                remainingReceiptToQueue
-            );
+            ReceiptToken(receiptToken).transferFrom( //gate approve過 但這裡還沒拿錢，所以這裡補寫
+                    msg.sender,
+                    address(this),
+                    remainingReceiptToQueue
+                );
             _enqueue(_to, remainingReceiptToQueue); //@seashell前面有跟合約拿錢了嗎 此處該拿多少?
             //@seashell qunes是array 每次付完一筆 就index ++ 這樣quene[index]就知道要處理哪一筆還沒付款的單
             // emit the redeem event for the amount of liquidity available
@@ -209,6 +216,8 @@ contract RedeemController is Farm, RedemptionPool, IRedeemController {
     /// @dev for iUSD/USDC, 1 iUSD = 1e18, receiptToken price is for example 0.8e18, USDC token price is 1e(18 + 18 - USDC decimals) = 1e30
     /// @dev then convert ratio is 1e18 * 0.8e18 / 1e30 = 0.8e36 / 1e30 = 0.8e6
     /// @dev so 1e18 iUSD is worth 0.8e6 USDC
+    // todo @seashell 我可以用 external函數 function receiptToAsset
+    // 瘋狂call 這個internal函數 這樣會造成read only reenterency嗎
     function _getReceiptToAssetConvertRatio() internal view returns (uint256) {
         uint256 _assetTokenPrice = Accounting(accounting).price(assetToken);
         uint256 _receiptTokenPrice = Accounting(accounting).price(receiptToken);
