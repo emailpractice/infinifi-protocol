@@ -291,22 +291,12 @@ contract LockingController is CoreControlled {
         uint256 totalShares = IERC20(data.shareToken).totalSupply();
         //    function totalSupply() external view returns (uint256);
         uint256 newShares = totalShares == 0
-            ? _amount // shareToken (liusd?)總共有多少liusd ，總共有多少iusd
+            ? _amount
             : _amount.mulDivDown(totalShares, data.totalReceiptTokens);
-        //( _amount * 總共有多少liusd ) / data.totalReceiptTokens)
-        // 用冒號區隔 trur / false 的結果
-        // totalReceiptToken (bucket struct 裡面的一個)的源頭:
-
-        // function start unwinding
-        //buckets[_unwindingEpochs].totalReceiptTokens =
-        //data.totalReceiptTokens -
-        //userReceiptToken;
-
-        //    function increase unwinding epoch    newData.totalReceiptTokens += receiptTokens;
         uint256 newRewardWeight = _amount.mulWadDown(data.multiplier);
-        data.totalReceiptTokens += _amount; //跟三差別? 為啥分開處理
-        globalRewardWeight += newRewardWeight; //可能是每個人 share 占比 來判斷獎勵該領多少
-        globalReceiptToken += _amount; //總iusd數量? 但為啥是+
+        data.totalReceiptTokens += _amount;
+        globalRewardWeight += newRewardWeight;
+        globalReceiptToken += _amount;
         buckets[_unwindingEpochs] = data;
 
         LockedPositionToken(data.shareToken).mint(_recipient, newShares);
@@ -460,8 +450,8 @@ contract LockingController is CoreControlled {
     }
 
     /// @notice Withdraw after an unwinding period has completed
-    function withdraw(
-        address _user,
+    function withdraw(    //seashell 使用者沒有說要提多少 ，就是給一個時間 (說要解鎖的那個時間 ，而不是call withdraw的時間我猜。 中間應該有cool down)
+        address _user,   
         uint256 _unwindingTimestamp
     ) external whenNotPaused onlyCoreRole(CoreRoles.ENTRY_POINT) {
         UnwindingModule(unwindingModule).withdraw(_unwindingTimestamp, _user);

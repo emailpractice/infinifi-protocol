@@ -246,10 +246,12 @@ contract UnwindingModule is CoreControlled {
         onlyCoreRole(CoreRoles.LOCKED_TOKEN_MANAGER)
     {
         uint32 currentEpoch = uint32(block.timestamp.epoch());
-        bytes32 id = _unwindingId(_owner, _startUnwindingTimestamp);
-        UnwindingPosition memory position = positions[id];
-        require(position.toEpoch > 0, UserNotUnwinding());
-        require(currentEpoch >= position.toEpoch, UserUnwindingInprogress());
+        bytes32 id = _unwindingId(_owner, _startUnwindingTimestamp);  //keccak256 方法: 結果可能長這樣 0x5f8e2be18a02c26d59c8d7d2b9b7c7884ab0f8d9b72bbf8b2a8b7cfb1d6e9a09
+        UnwindingPosition memory position = positions[id]; //UnwindingPosition 是在指定position這個新變數的型別 (看unwinding position的參考可以知道這是一個struct)
+        // (比如 接下來是整數) ; memory是表示 positoin 這個變數不用存進storage鍊上，暫存在 ram 就好，函數呼叫完就刪掉
+        // startunwinding 函數會把 position[id]的資料設計好 。 下面delete會把這筆資料刪掉(鏈條上的 不是這邊新增的memory版本的)
+        require(position.toEpoch > 0, UserNotUnwinding());   //toEpoch 是使用者預計解鎖完的時間 todo 但是用 >0 去檢查是對的嗎?
+        require(currentEpoch >= position.toEpoch, UserUnwindingInprogress()); //解鎖時間過了
 
         uint256 userBalance = balanceOf(_owner, _startUnwindingTimestamp);
         uint256 userRewardWeight =
