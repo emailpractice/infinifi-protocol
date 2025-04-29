@@ -161,29 +161,7 @@ contract InfiniFiGatewayV1 is CoreControlled {
         iusd.approve(address(lockingController), _amount);
         lockingController.createPosition(_amount, _unwindingEpochs, _recipient);
     }
-    /* function createPosition(uint256 _amount, uint32 _unwindingEpochs, address _recipient) external whenNotPaused {
-        if (msg.sender != unwindingModule) {
-            // special case for access control here, the unwindingModule can reenter createPosition()
-            // after being called by this contract's cancelUnwinding() function.
-            // this exception is preferable to granting ENTRY_POINT role to the unwindingModule.
-            require(core().hasRole(CoreRoles.ENTRY_POINT, msg.sender), "UNAUTHORIZED");
-        }
 
-        BucketData memory data = buckets[_unwindingEpochs];
-        require(data.shareToken != address(0), InvalidBucket(_unwindingEpochs));
-        require(IERC20(receiptToken).transferFrom(msg.sender, address(this), _amount), TransferFailed());
-
-        uint256 totalShares = IERC20(data.shareToken).totalSupply();
-        uint256 newShares = totalShares == 0 ? _amount : _amount.mulDivDown(totalShares, data.totalReceiptTokens);
-        uint256 newRewardWeight = _amount.mulWadDown(data.multiplier);
-        data.totalReceiptTokens += _amount;
-        globalRewardWeight += newRewardWeight;
-        globalReceiptToken += _amount;
-        buckets[_unwindingEpochs] = data;
-
-        LockedPositionToken(data.shareToken).mint(_recipient, newShares);
-        emit PositionCreated(block.timestamp, _recipient, _amount, _unwindingEpochs);
-    } */
     function startUnwinding(
         uint256 _shares,
         uint32 _unwindingEpochs
@@ -239,7 +217,7 @@ contract InfiniFiGatewayV1 is CoreControlled {
             msg.sender,
             _unwindingTimestamp
         );
-    } 
+    }
     // 為甚麼這邊是用get address 不是預先寫好實體 lockingController
 
     /*    function _revertIfThereAreUnaccruedLosses() internal view {
@@ -324,7 +302,7 @@ contract InfiniFiGatewayV1 is CoreControlled {
     // 那不就跟call data重疊了。
 
     function vote(
-        address _asset, 
+        address _asset,
         uint32 _unwindingEpochs,
         AllocationVoting.AllocationVote[] calldata _liquidVotes,
         AllocationVoting.AllocationVote[] calldata _illiquidVotes

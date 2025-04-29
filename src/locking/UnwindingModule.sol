@@ -239,32 +239,7 @@ contract UnwindingModule is CoreControlled {
         emit UnwindingCanceled(block.timestamp, _user, _startUnwindingTimestamp, _newUnwindingEpochs);
     }
 
-//@seashell 應該是使用者申請解鎖 然後在解鎖的邏輯裡面就把使用的 liusd 燒掉。 阿等winding期過了之後，這邊就可以withdraw出iusd 
-    /// @notice Withdraw after an unwinding period has completed
-    function withdraw(uint256 _startUnwindingTimestamp, address _owner)
-        external
-        onlyCoreRole(CoreRoles.LOCKED_TOKEN_MANAGER)
-    {
-        uint32 currentEpoch = uint32(block.timestamp.epoch());
-        bytes32 id = _unwindingId(_owner, _startUnwindingTimestamp);
-        UnwindingPosition memory position = positions[id];
-        require(position.toEpoch > 0, UserNotUnwinding());
-        require(currentEpoch >= position.toEpoch, UserUnwindingInprogress());
-
-        uint256 userBalance = balanceOf(_owner, _startUnwindingTimestamp);
-        uint256 userRewardWeight =
-            position.fromRewardWeight - (position.toEpoch - position.fromEpoch) * position.rewardWeightDecrease;
-        delete positions[id];
-
-        GlobalPoint memory point = _getLastGlobalPoint();
-        point.totalRewardWeight -= userRewardWeight;
-        _updateGlobalPoint(point);
-
-        totalShares -= position.shares;
-        totalReceiptTokens -= userBalance;
-
-        require(IERC20(receiptToken).transfer(_owner, userBalance), TransferFailed()); //轉iusd給使用者 
-        emit Withdrawal(block.timestamp, _startUnwindingTimestamp, _owner);
+//   emit Withdrawal(block.timestamp, _startUnwindingTimestamp, _owner);
     }
 
     /// ----------------------------------------------------------------------------
