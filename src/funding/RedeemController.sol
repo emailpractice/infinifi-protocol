@@ -154,6 +154,10 @@ contract RedeemController is Farm, RedemptionPool, IRedeemController {
             ReceiptToken(receiptToken).burnFrom( //@seashell 這裡只burn部分  但gate approve全額。
                     //@ 我可以先趁流動性不足的時候呼叫一下redeem 然後redeem controller就會有多的 來自gate的 approve額度沒消耗完
                     // 如果redeemController 還有其他函數有漏洞 就可以利用那個函數 A Gate的錢
+
+                    // 1. 這個函數得要自己從gatE多拿錢 而且還要有額外的漏洞可以洩漏自己的錢給外部 難度有點高
+                    // 2. function claimRedemption   transferto
+                    // 3.
                     msg.sender,
                     amountReceiptToBurn
                 );
