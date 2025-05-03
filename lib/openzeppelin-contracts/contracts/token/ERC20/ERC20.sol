@@ -181,15 +181,15 @@ abstract contract ERC20 is Context, IERC20, IERC20Metadata, IERC20Errors {
      * Emits a {Transfer} event.
      */
     function _update(address from, address to, uint256 value) internal virtual {
-        if (from == address(0)) {
+        if (from == address(0)) {  //seashell 不是從哪邊轉來的 = 發行新幣
             // Overflow check required: The rest of the code assumes that totalSupply never overflows
             _totalSupply += value;
         } else {
             uint256 fromBalance = _balances[from];
-            if (fromBalance < value) {
+            if (fromBalance < value) {   
                 revert ERC20InsufficientBalance(from, fromBalance, value);
             }
-            unchecked {
+            unchecked {//不檢查overflow 來省gas 因為前面 <value
                 // Overflow not possible: value <= fromBalance <= totalSupply.
                 _balances[from] = fromBalance - value;
             }

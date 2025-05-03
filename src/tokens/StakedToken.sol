@@ -128,8 +128,8 @@ contract StakedToken is ERC4626, CoreControlled {
         emit VaultLoss(block.timestamp, 0, _amount);
     }
 
-    /// @notice Slash rewards for a given epoch
-    function _slashEpochRewards(uint256 _epoch, uint256 _amount) internal returns (uint256) {
+    /// @notice Slash rewards for a given epoch   @seashell slash是處罰意味 扣掉一些用戶的資產
+        function _slashEpochRewards(uint256 _epoch, uint256 _amount) internal returns (uint256) {
         uint256 _epochRewards = epochRewards[_epoch];
         if (_epochRewards >= _amount) {
             epochRewards[_epoch] = _epochRewards - _amount;
@@ -150,10 +150,12 @@ contract StakedToken is ERC4626, CoreControlled {
     /// ---------------------------------------------------------------------------
 
     function depositRewards(uint256 _amount) external onlyCoreRole(CoreRoles.FINANCE_MANAGER) {
-        ERC20(asset()).transferFrom(msg.sender, address(this), _amount);
-        uint256 epoch = block.timestamp.nextEpoch();
-        epochRewards[epoch] += _amount;
-        emit VaultProfit(block.timestamp, epoch, _amount);
+        ERC20(asset()).transferFrom(msg.sender, address(this), _amount); //從Yield sharing 的 handle positive yield拿錢
+        uint256 epoch = block.timestamp.nextEpoch(); // 會有一個起始時間 然後定義一個epoch是一週，
+        // nextEpch會算那下一週的開始時間點是多少  2025050317:30之類的， 
+        epochRewards[epoch] += _amount;  //把獎勵加到下一個時間段，不可以馬上給的樣子 
+        // 獎勵跟時間配對在一起， 但沒指定用戶。  所以這些獎勵全部用戶都可以去爭取? 
+        emit VaultProfit(block.timestamp, epoch, _amount); 
     }
 
     /// @notice returns the amount of rewards for the current epoch minus the rewards that are already available

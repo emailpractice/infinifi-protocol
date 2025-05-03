@@ -160,9 +160,10 @@ contract YieldSharing is
     /// oracle price of assets held in the protocol has decreased since last accrue() call,
     /// or if more ReceiptTokens entered circulation than assets entered the protocol.
     function unaccruedYield() public view returns (int256) {
-        uint256 receiptTokenPrice = Accounting(accounting).price(
-            receiptToken
-        ); /*iusd價格怎變動:iUSD 代表的是資產加上累積收益
+    uint256 receiptTokenPrice = Accounting(accounting).price(
+        receiptToken
+    );
+ /*iusd價格怎變動:iUSD 代表的是資產加上累積收益
 一開始，你可能用 1 USDC 換到 1 iUSD（假設初始匯率是 1:1）。
 隨著時間推移，你的存款開始產生利息，例如協議去借貸、流動性挖礦賺到利息。
 收益會回流進池子，所以池子的總資產增加了。
@@ -173,6 +174,15 @@ contract YieldSharing is
         uint256 assets = Accounting(accounting).totalAssetsValue(); // returns assets in USD
 
         uint256 assetsInReceiptTokens = assets.divWadDown(receiptTokenPrice);
+// seashell  這邊 unaccured yield 的函數就拿來更新 receipt token價格的，所以上面的資產總值 / Recipt 價格，其實是除到舊的價格
+// 也就是以現在的 token 價格去計算現在資產值得多少這種 token，再減掉現有 token 量。 就知道是少發還是多發，
+// 看到多發token就知道是帳面虧損了: 現在資產總額其實不值得那麼多的token (以尚未更新的token價格來說)
+// 所以如果正常不 burn 掉多發的 token ， 較少的資產總額除以 token 數量，token 價格就會跌，使用者就受損。
+// 而只要 burn 掉多發的 token 量， 就等於是在讓 token 價格維持不變(實際上太高)，但還是可以match 上 較少的資產總額
+// 因為 雖然token價格太高，但Token數量被降低了，所以一來一往， 資產總額還是可以 = 數量*價格 
+// 這樣就可以維持住原本的token價格，讓用戶不受損 (有準備金的情況就會套用這個邏輯: burn 掉這邊算出來的超發的receipt token
+
+// 而在少發 token 的情況，就是有盈餘。  有很多資產，照現有token價格 其實要有更多 token  
 
         return
             int256(assetsInReceiptTokens) -
@@ -231,9 +241,9 @@ contract YieldSharing is
             .balanceOf(stakedToken)
             .mulWadDown(liquidReturnMultiplier); //調高或調降 流動農場報酬比例 的乘數
         uint256 receiptTokenTotalSupply = ReceiptToken(receiptToken)
-            .totalSupply();
+            .totalSupply();        //seashell 這邊要重點還是要分配盈餘，所以這邊拿取 total supply是為了計算該怎麼分配。
         uint256 targetIlliquidMinimum = receiptTokenTotalSupply.mulWadDown(
-            targetIlliquidRatio //總iusd X 分配到lock農場的比例
+            targetIlliquidRatio //總iusd X 一定要分配到lock農場的比例
         );
         uint256 lockingReceiptTokens = LockingController(lockingModule)
             .totalBalance(); //locking token (liusd)好像儲存在locking controller?
@@ -253,13 +263,13 @@ contract YieldSharing is
         return totalWeight.divWadDown(totalBalance());
     } */
         lockingReceiptTokens = lockingReceiptTokens.mulWadDown(
-            bondingMultiplier
+            bondingMultiplier              // L token已經調高了，但還要再乘上一個加成 
         );
-        uint256 totalReceiptTokens = stakedReceiptTokens + lockingReceiptTokens;
+        uint256 totalReceiptTokens = stakedReceiptTokens + lockingReceiptTokens; 
         //receiptTokenTotalSupply 是 iusd總量  這邊的卻是 s + L 代幣的總量
         //seashell 等等會用 s代幣 / S+L總量 來計算 staking 佔據這次收益的多少賺錢比例
 
-        // mint yield
+        // mint yield給這個合約，等等這個合約要開始分配報酬給公司、準備金、 Lock 還有 Stake 了
         ReceiptToken(receiptToken).mint(address(this), _positiveYield);
 
         // performance fee
@@ -292,13 +302,14 @@ contract YieldSharing is
 
         // compute splits
         if (totalReceiptTokens == 0) {
+
             // nobody to distribute to, do nothing and hold the tokens
             return;
         }
 
         // yield split to staked users
         uint256 stakingProfit = _positiveYield.mulDivDown(
-            stakedReceiptTokens,
+            stakedReceiptTokens,                 //根據unacured yeild找出，有多多少recipt token 去乘上現在有多少質押代幣
             totalReceiptTokens
         );
         if (stakingProfit > 0) {

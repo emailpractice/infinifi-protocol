@@ -19,7 +19,7 @@ contract Timelock is TimelockController, CoreControlled {
 
     /// @dev override of OZ access/AccessControl.sol inherited by governance/TimelockController.sol
     /// This will check roles with Core, and not with the storage mapping from AccessControl.sol
-    function hasRole(bytes32 role, address account) public view virtual override returns (bool) {
+    function hasRole(bytes32 role, address account) public view virtureal override returns (bool) {
         return core().hasRole(role, account);
     }
 
