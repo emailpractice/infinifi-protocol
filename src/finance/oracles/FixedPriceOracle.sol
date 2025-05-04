@@ -18,3 +18,5 @@ contract FixedPriceOracle is IOracle, CoreControlled {
         emit PriceSet(block.timestamp, _price);
     }
 }
+// 不是去讀取iusd 或是 accounting裡面 oracle [iusd] 的值。 他就是把價格存在price。 我猜是其他地方決定價格 然後呼叫setPrice把價格存好
+// acounting可查 setprice和setoracle
