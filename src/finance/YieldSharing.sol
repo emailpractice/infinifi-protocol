@@ -187,7 +187,8 @@ contract YieldSharing is
         return
             int256(assetsInReceiptTokens) -
             int256(ReceiptToken(receiptToken).totalSupply());
-        //@seashell 全農場資產算出的 share 張數 - 在外流通的張數  =
+        //@seashell 全農場資產算出的 share 張數 (現值張數) - 在外流通的張數  =
+
         //@seashell 算完再Return vs return裡面計算  (gas)
 
         // total supply是靠下面的update 在變動的
@@ -301,7 +302,7 @@ contract YieldSharing is
         }
 
         // compute splits
-        if (totalReceiptTokens == 0) {
+        if (totalReceiptTokens == 0) {  //Seashell 就是 L+S。  這邊= 0 的話 下面的muldivdown會除以0 導致revert
 
             // nobody to distribute to, do nothing and hold the tokens
             return;
@@ -309,18 +310,21 @@ contract YieldSharing is
 
         // yield split to staked users
         uint256 stakingProfit = _positiveYield.mulDivDown(
-            stakedReceiptTokens,                 //根據unacured yeild找出，有多多少recipt token 去乘上現在有多少質押代幣
-            totalReceiptTokens
+            stakedReceiptTokens,                 //根據unacured yeild找出，有賺到多多少recipt token 
+            totalReceiptTokens                  //再去乘上現在有多少質押代幣    / 
+            //符合直覺的寫法是 p*(s/total)  但這邊是 (p*s)/total ，根據交換率跟結合律 兩個是一樣的。 
+            //好像最後再除可以降低rounding issue 提高精度
         );
         if (stakingProfit > 0) {
-            StakedToken(stakedToken).depositRewards(stakingProfit);
+            StakedToken(stakedToken).depositRewards(stakingProfit);  //@todo 從此合約把錢轉到stakedtoken合約
+            // 然後把獎勵的(數字) 配對到下一個epoch，但還沒有指定是分給那些用戶
         }
 
         // yield split to locking users
         uint256 lockingProfit = _positiveYield - stakingProfit;
         if (lockingProfit > 0) {
-            LockingController(lockingModule).depositRewards(lockingProfit);
-        }
+            LockingController(lockingModule).depositRewards(lockingProfit); //@seashell 轉到 lockingmodule存起來就結束
+        }  //一樣沒分配
     }
 
     /// @notice Loss propagation: iUSD locking users -> siUSD holders -> iUSD holders
@@ -331,7 +335,8 @@ contract YieldSharing is
             address(this)
         );
         if (safetyBuffer >= _negativeYield) {
-            ReceiptToken(receiptToken).burn(_negativeYield);
+            ReceiptToken(receiptToken).burn(_negativeYield);  //所以iusd應該是存在receip token 
+            //像銀行一樣，可以發錢或燒錢來平衡市價
             return;
         }
 

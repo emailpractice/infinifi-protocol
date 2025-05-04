@@ -589,23 +589,24 @@ contract LockingController is CoreControlled {
     function applyLosses(
         uint256 _amount
     ) external onlyCoreRole(CoreRoles.FINANCE_MANAGER) {
-        if (_amount == 0) return;
+        if (_amount == 0) return;  //如果虧損 = 0 什麼都不做
 
         emit LossesApplied(block.timestamp, _amount);
 
         // compute split between locking users & unwinding users
         uint256 unwindingBalance = UnwindingModule(unwindingModule)
-            .totalReceiptTokens();
-        uint256 _globalReceiptToken = globalReceiptToken;
-        uint256 amountToUnwinding = _amount.mulDivDown(
+            .totalReceiptTokens();        //global receipt token 追蹤不到 不知道什麼時候改動他的
+        uint256 _globalReceiptToken = globalReceiptToken; // 底線變數通常是表示要被傳入function的變數 但這邊就是用底線變數要拿來計算
+        uint256 amountToUnwinding = _amount.mulDivDown(   //  沒底線變數就是狀態變數 
             unwindingBalance,
-            unwindingBalance + _globalReceiptToken
-        );
+            unwindingBalance + _globalReceiptToken     // 雖然 global不知道啥意思 但這邊猜的到就是在解lock人的比例， 
+        );                                              // 乘上negative yield (_amount) 就是解鎖人要虧的token數量 
+                                                        // 看起來解鎖人要虧的錢沒有比較少 (沒有multipier)
         UnwindingModule(unwindingModule).applyLosses(amountToUnwinding);
-        _amount -= amountToUnwinding;
+        _amount -= amountToUnwinding;  
 
-        if (_amount == 0) return;
-
+        if (_amount == 0) return;  //會變成0就是_amount = amountUnwinding 那就代表unwinding的人佔據locking人的100%
+// 所以把loss分配給unwinding人之後 下面的把損失分給還在lock的人的程式碼就不用執行了 可以return
         ERC20Burnable(receiptToken).burn(_amount);
 
         uint256 nBuckets = enabledBuckets.length;
