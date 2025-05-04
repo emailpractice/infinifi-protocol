@@ -603,7 +603,7 @@ contract LockingController is CoreControlled {
         );                                              // 乘上negative yield (_amount) 就是解鎖人要虧的token數量 
                                                         // 看起來解鎖人要虧的錢沒有比較少 (沒有multipier)
         UnwindingModule(unwindingModule).applyLosses(amountToUnwinding);
-        _amount -= amountToUnwinding;  
+        _amount -= amountToUnwinding; 
 
         if (_amount == 0) return;  //會變成0就是_amount = amountUnwinding 那就代表unwinding的人佔據locking人的100%
 // 所以把loss分配給unwinding人之後 下面的把損失分給還在lock的人的程式碼就不用執行了 可以return
