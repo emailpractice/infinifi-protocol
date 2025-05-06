@@ -94,10 +94,10 @@ contract YieldSharing is
         stakedToken = _stakedToken;
         lockingModule = _lockingModule;
 
-        ReceiptToken(receiptToken).approve(_stakedToken, type(uint256).max); // seashell hardcoded
+        ReceiptToken(receiptToken).approve(_stakedToken, type(uint256).max); // seashell hardcoded 危險
         ReceiptToken(receiptToken).approve(_lockingModule, type(uint256).max);
-    } //receiptToken ()可以填 iusd 也可 siusd liusd。  統一模組去分成收據 質押  lock 代幣 @seashell
-
+    } //receiptToken ()可以填 iusd 也可 siusd 但好像不能 liusd，它是用locking module管理。
+    //統一模組去分成收據 質押 代幣有什麼好處?，他們有這麼多共通點嗎? 為甚麼lock又是分開的 @seashell
     /// @notice set the safety buffer size
     /// @param _safetyBufferSize the new safety buffer size
     function setSafetyBufferSize(
@@ -160,10 +160,8 @@ contract YieldSharing is
     /// oracle price of assets held in the protocol has decreased since last accrue() call,
     /// or if more ReceiptTokens entered circulation than assets entered the protocol.
     function unaccruedYield() public view returns (int256) {
-    uint256 receiptTokenPrice = Accounting(accounting).price(
-        receiptToken
-    );
- /*iusd價格怎變動:iUSD 代表的是資產加上累積收益
+        uint256 receiptTokenPrice = Accounting(accounting).price(receiptToken);
+        /*iusd價格怎變動:iUSD 代表的是資產加上累積收益
 一開始，你可能用 1 USDC 換到 1 iUSD（假設初始匯率是 1:1）。
 隨著時間推移，你的存款開始產生利息，例如協議去借貸、流動性挖礦賺到利息。
 收益會回流進池子，所以池子的總資產增加了。
@@ -174,15 +172,15 @@ contract YieldSharing is
         uint256 assets = Accounting(accounting).totalAssetsValue(); // returns assets in USD
 
         uint256 assetsInReceiptTokens = assets.divWadDown(receiptTokenPrice);
-// seashell  這邊 unaccured yield 的函數就拿來更新 receipt token價格的，所以上面的資產總值 / Recipt 價格，其實是除到舊的價格
-// 也就是以現在的 token 價格去計算現在資產值得多少這種 token，再減掉現有 token 量。 就知道是少發還是多發，
-// 看到多發token就知道是帳面虧損了: 現在資產總額其實不值得那麼多的token (以尚未更新的token價格來說)
-// 所以如果正常不 burn 掉多發的 token ， 較少的資產總額除以 token 數量，token 價格就會跌，使用者就受損。
-// 而只要 burn 掉多發的 token 量， 就等於是在讓 token 價格維持不變(實際上太高)，但還是可以match 上 較少的資產總額
-// 因為 雖然token價格太高，但Token數量被降低了，所以一來一往， 資產總額還是可以 = 數量*價格 
-// 這樣就可以維持住原本的token價格，讓用戶不受損 (有準備金的情況就會套用這個邏輯: burn 掉這邊算出來的超發的receipt token
+        // seashell  這邊 unaccured yield 的函數就拿來更新 receipt token價格的，所以上面的資產總值 / Recipt 價格，其實是除到舊的價格
+        // 也就是以現在的 token 價格去計算現在資產值得多少這種 token，再減掉現有 token 量。 就知道是少發還是多發，
+        // 看到多發token就知道是帳面虧損了: 現在資產總額其實不值得那麼多的token (以尚未更新的token價格來說)
+        // 所以如果正常不 burn 掉多發的 token ， 較少的資產總額除以 token 數量，token 價格就會跌，使用者就受損。
+        // 而只要 burn 掉多發的 token 量， 就等於是在讓 token 價格維持不變(實際上太高)，但還是可以match 上 較少的資產總額
+        // 因為 雖然token價格太高，但Token數量被降低了，所以一來一往， 資產總額還是可以 = 數量*價格
+        // 這樣就可以維持住原本的token價格，讓用戶不受損 (有準備金的情況就會套用這個邏輯: burn 掉這邊算出來的超發的receipt token
 
-// 而在少發 token 的情況，就是有盈餘。  有很多資產，照現有token價格 其實要有更多 token  
+        // 而在少發 token 的情況，就是有盈餘。  有很多資產，照現有token價格 其實要有更多 token
 
         return
             int256(assetsInReceiptTokens) -
@@ -242,7 +240,7 @@ contract YieldSharing is
             .balanceOf(stakedToken)
             .mulWadDown(liquidReturnMultiplier); //調高或調降 流動農場報酬比例 的乘數
         uint256 receiptTokenTotalSupply = ReceiptToken(receiptToken)
-            .totalSupply();        //seashell 這邊要重點還是要分配盈餘，所以這邊拿取 total supply是為了計算該怎麼分配。
+            .totalSupply(); //seashell 這邊要重點還是要分配盈餘，所以這邊拿取 total supply是為了計算該怎麼分配。
         uint256 targetIlliquidMinimum = receiptTokenTotalSupply.mulWadDown(
             targetIlliquidRatio //總iusd X 一定要分配到lock農場的比例
         );
@@ -264,9 +262,9 @@ contract YieldSharing is
         return totalWeight.divWadDown(totalBalance());
     } */
         lockingReceiptTokens = lockingReceiptTokens.mulWadDown(
-            bondingMultiplier              // L token已經調高了，但還要再乘上一個加成 
+            bondingMultiplier // L token已經調高了，但還要再乘上一個加成
         );
-        uint256 totalReceiptTokens = stakedReceiptTokens + lockingReceiptTokens; 
+        uint256 totalReceiptTokens = stakedReceiptTokens + lockingReceiptTokens;
         //receiptTokenTotalSupply 是 iusd總量  這邊的卻是 s + L 代幣的總量
         //seashell 等等會用 s代幣 / S+L總量 來計算 staking 佔據這次收益的多少賺錢比例
 
@@ -302,7 +300,8 @@ contract YieldSharing is
         }
 
         // compute splits
-        if (totalReceiptTokens == 0) {  //Seashell 就是 L+S。  這邊= 0 的話 下面的muldivdown會除以0 導致revert
+        if (totalReceiptTokens == 0) {
+            //Seashell 就是 L+S。  這邊= 0 的話 下面的muldivdown會除以0 導致revert
 
             // nobody to distribute to, do nothing and hold the tokens
             return;
@@ -310,13 +309,13 @@ contract YieldSharing is
 
         // yield split to staked users
         uint256 stakingProfit = _positiveYield.mulDivDown(
-            stakedReceiptTokens,                 //根據unacured yeild找出，有賺到多多少recipt token 
-            totalReceiptTokens                  //再去乘上現在有多少質押代幣    / 
-            //符合直覺的寫法是 p*(s/total)  但這邊是 (p*s)/total ，根據交換率跟結合律 兩個是一樣的。 
+            stakedReceiptTokens, //根據unacured yeild找出，有賺到多多少recipt token
+            totalReceiptTokens //再去乘上現在有多少質押代幣    /
+            //符合直覺的寫法是 p*(s/total)  但這邊是 (p*s)/total ，根據交換率跟結合律 兩個是一樣的。
             //好像最後再除可以降低rounding issue 提高精度
         );
         if (stakingProfit > 0) {
-            StakedToken(stakedToken).depositRewards(stakingProfit);  //@todo 從此合約把錢轉到stakedtoken合約
+            StakedToken(stakedToken).depositRewards(stakingProfit); //@todo 從此合約把錢轉到stakedtoken合約
             // 然後把獎勵的(數字) 配對到下一個epoch，但還沒有指定是分給那些用戶
         }
 
@@ -324,7 +323,7 @@ contract YieldSharing is
         uint256 lockingProfit = _positiveYield - stakingProfit;
         if (lockingProfit > 0) {
             LockingController(lockingModule).depositRewards(lockingProfit); //@seashell 轉到 lockingmodule存起來就結束
-        }  //一樣沒分配
+        } //一樣沒分配
     }
 
     /// @notice Loss propagation: iUSD locking users -> siUSD holders -> iUSD holders
@@ -335,27 +334,33 @@ contract YieldSharing is
             address(this)
         );
         if (safetyBuffer >= _negativeYield) {
-            ReceiptToken(receiptToken).burn(_negativeYield);  //所以iusd應該是存在receip token 
+            ReceiptToken(receiptToken).burn(_negativeYield); //所以iusd應該是存在receip token
             //像銀行一樣，可以發錢或燒錢來平衡市價
             return;
-        }
+        } //seashell safetybufer不夠補滿的話，它就寧願完全不補了，讓用戶承受損失
+        //可能代表著只有在大額損失的時候會出動，其他時候讓用戶承擔風險。
 
         // first, apply losses to locking users
         uint256 lockingReceiptTokens = LockingController(lockingModule)
             .totalBalance();
         if (_negativeYield <= lockingReceiptTokens) {
             LockingController(lockingModule).applyLosses(_negativeYield);
-            return;
-        }
-        LockingController(lockingModule).applyLosses(lockingReceiptTokens);
-        _negativeYield -= lockingReceiptTokens;
+            return; //直接結束函式
+        } //因為有上面的return 所以下面邏輯等效於 有寫else 就是損失比lock token還多
+        //一般來說在這種重要的邏輯，保留else能明確的表示出上下程式碼的互斥，增加可讀性
+        //開發商不選擇else應該是因為下面還有一層 if else，
+        //如果這邊else，下面再 else 的話就會形成縮排兩次的nest結構
+        //可能覺得看起來比較不優雅吧
+
+        LockingController(lockingModule).applyLosses(lockingReceiptTokens); //全liusd都扣掉拿去承擔損失
+        _negativeYield -= lockingReceiptTokens; //損失 - 拿去扛的liusd = 剩餘損失
 
         // second, apply negativeYield to siUSD holders
         uint256 stakedReceiptTokens = ReceiptToken(receiptToken).balanceOf(
             stakedToken
         );
         if (_negativeYield <= stakedReceiptTokens) {
-            StakedToken(stakedToken).applyLosses(_negativeYield);
+            StakedToken(stakedToken).applyLosses(_negativeYield); //剩餘損失給stake token扛
             return;
         }
         StakedToken(stakedToken).applyLosses(stakedReceiptTokens);
@@ -364,10 +369,10 @@ contract YieldSharing is
         // lastly, apply losses to all iUSD in circulation
         uint256 totalSupply = ReceiptToken(receiptToken).totalSupply();
         uint256 price = Accounting(accounting).price(receiptToken);
-        uint256 newPrice = price.mulDivDown(
-            totalSupply - _negativeYield,
-            totalSupply
-        );
+        uint256 newPrice = price.mulDivDown( // (原 price * 變化後數量) / 全部數量
+                totalSupply - _negativeYield,
+                totalSupply
+            );
         Accounting(accounting).setPrice(receiptToken, newPrice);
     }
 }

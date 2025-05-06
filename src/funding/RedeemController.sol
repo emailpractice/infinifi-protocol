@@ -76,7 +76,7 @@ contract RedeemController is Farm, RedemptionPool, IRedeemController {
     /// @notice returns the total assets of the redeem controller
     /// @dev the total assets is the sum of the assets minus the total pending claims
     function assets() public view override returns (uint256) {
-        return super.assets() - totalPendingClaims;
+        return super.assets() - totalPendingClaims; //overide了farm的asset 我不知道為甚麼ctrl click追溯不到
     }
 
     /// @notice returns the liquidity of the redeem controller

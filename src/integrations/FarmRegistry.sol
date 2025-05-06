@@ -16,16 +16,25 @@ contract FarmRegistry is CoreControlled {
 
     event AssetEnabled(uint256 indexed timestamp, address asset);
     event AssetDisabled(uint256 indexed timestamp, address asset);
-    event FarmsAdded(uint256 indexed timestamp, uint256 farmType, address[] indexed farms);
-    event FarmsRemoved(uint256 indexed timestamp, uint256 farmType, address[] indexed farms);
+    event FarmsAdded(
+        uint256 indexed timestamp,
+        uint256 farmType,
+        address[] indexed farms
+    );
+    event FarmsRemoved(
+        uint256 indexed timestamp,
+        uint256 farmType,
+        address[] indexed farms
+    );
 
-    using EnumerableSet for EnumerableSet.AddressSet;
-
-    EnumerableSet.AddressSet private assets;
+    using EnumerableSet for EnumerableSet.AddressSet; //seashell更好用的地址清單
+    EnumerableSet.AddressSet private assets; //可以 assets.add 或 remove  contain 很方便
     EnumerableSet.AddressSet private farms;
     mapping(uint256 _type => EnumerableSet.AddressSet _farms) private typeFarms;
-    mapping(address _asset => EnumerableSet.AddressSet _farms) private assetFarms;
-    mapping(address _asset => mapping(uint256 _type => EnumerableSet.AddressSet _farms)) private assetTypeFarms;
+    mapping(address _asset => EnumerableSet.AddressSet _farms)
+        private assetFarms;
+    mapping(address _asset => mapping(uint256 _type => EnumerableSet.AddressSet _farms))
+        private assetTypeFarms;
 
     constructor(address _core) CoreControlled(_core) {}
 
@@ -45,15 +54,22 @@ contract FarmRegistry is CoreControlled {
         return farms.values();
     }
 
-    function getTypeFarms(uint256 _type) external view returns (address[] memory) {
+    function getTypeFarms(
+        uint256 _type
+    ) external view returns (address[] memory) {
         return typeFarms[_type].values();
     }
 
-    function getAssetFarms(address _asset) external view returns (address[] memory) {
+    function getAssetFarms(
+        address _asset
+    ) external view returns (address[] memory) {
         return assetFarms[_asset].values();
     }
 
-    function getAssetTypeFarms(address _asset, uint256 _type) external view returns (address[] memory) {
+    function getAssetTypeFarms(
+        address _asset,
+        uint256 _type
+    ) external view returns (address[] memory) {
         return assetTypeFarms[_asset][_type].values();
     }
 
@@ -61,11 +77,17 @@ contract FarmRegistry is CoreControlled {
         return farms.contains(_farm);
     }
 
-    function isFarmOfAsset(address _farm, address _asset) external view returns (bool) {
+    function isFarmOfAsset(
+        address _farm,
+        address _asset
+    ) external view returns (bool) {
         return assetFarms[_asset].contains(_farm);
     }
 
-    function isFarmOfType(address _farm, uint256 _type) external view returns (bool) {
+    function isFarmOfType(
+        address _farm,
+        uint256 _type
+    ) external view returns (bool) {
         return typeFarms[_type].contains(_farm);
     }
 
@@ -73,25 +95,32 @@ contract FarmRegistry is CoreControlled {
     /// WRITE METHODS
     /// ----------------------------------------------------------------------------
 
-    function enableAsset(address _asset) external onlyCoreRole(CoreRoles.GOVERNOR) {
+    function enableAsset(
+        address _asset
+    ) external onlyCoreRole(CoreRoles.GOVERNOR) {
         require(assets.add(_asset), AssetAlreadyEnabled(_asset));
         emit AssetEnabled(block.timestamp, _asset);
     }
 
-    function disableAsset(address _asset) external onlyCoreRole(CoreRoles.GOVERNOR) {
+    function disableAsset(
+        address _asset
+    ) external onlyCoreRole(CoreRoles.GOVERNOR) {
         require(assets.remove(_asset), AssetNotFound(_asset));
         emit AssetDisabled(block.timestamp, _asset);
     }
 
-    function addFarms(uint256 _type, address[] calldata _list) external onlyCoreRole(CoreRoles.PROTOCOL_PARAMETERS) {
+    function addFarms(
+        uint256 _type,
+        address[] calldata _list
+    ) external onlyCoreRole(CoreRoles.PROTOCOL_PARAMETERS) {
         _addFarms(_type, _list);
         emit FarmsAdded(block.timestamp, _type, _list);
     }
 
-    function removeFarms(uint256 _type, address[] calldata _list)
-        external
-        onlyCoreRole(CoreRoles.PROTOCOL_PARAMETERS)
-    {
+    function removeFarms(
+        uint256 _type,
+        address[] calldata _list
+    ) external onlyCoreRole(CoreRoles.PROTOCOL_PARAMETERS) {
         _removeFarms(_type, _list);
         emit FarmsRemoved(block.timestamp, _type, _list);
     }
@@ -102,12 +131,22 @@ contract FarmRegistry is CoreControlled {
 
     function _addFarms(uint256 _type, address[] calldata _list) internal {
         for (uint256 i = 0; i < _list.length; i++) {
-            address farmAsset = IFarm(_list[i]).assetToken();
-            require(assets.contains(farmAsset), AssetNotEnabled(_list[i], farmAsset));
+            address farmAsset = IFarm(_list[i]).assetToken(); //指定每個_list[i] 的address 是 ifarm，表示他們有assetToken函數。
+            //但開發商怎麼知道有這函數呢 是ERC標準嗎
+            require(
+                assets.contains(farmAsset),
+                AssetNotEnabled(_list[i], farmAsset)
+            ); //enable的 asset才可以加
             require(farms.add(_list[i]), FarmAlreadyAdded(_list[i]));
             require(typeFarms[_type].add(_list[i]), FarmAlreadyAdded(_list[i]));
-            require(assetFarms[farmAsset].add(_list[i]), FarmAlreadyAdded(_list[i]));
-            require(assetTypeFarms[farmAsset][_type].add(_list[i]), FarmAlreadyAdded(_list[i]));
+            require(
+                assetFarms[farmAsset].add(_list[i]),
+                FarmAlreadyAdded(_list[i])
+            );
+            require(
+                assetTypeFarms[farmAsset][_type].add(_list[i]),
+                FarmAlreadyAdded(_list[i])
+            );
         }
     }
 
@@ -116,8 +155,14 @@ contract FarmRegistry is CoreControlled {
             address farmAsset = IFarm(_list[i]).assetToken();
             require(farms.remove(_list[i]), FarmNotFound(_list[i]));
             require(typeFarms[_type].remove(_list[i]), FarmNotFound(_list[i]));
-            require(assetFarms[farmAsset].remove(_list[i]), FarmNotFound(_list[i]));
-            require(assetTypeFarms[farmAsset][_type].remove(_list[i]), FarmNotFound(_list[i]));
+            require(
+                assetFarms[farmAsset].remove(_list[i]),
+                FarmNotFound(_list[i])
+            );
+            require(
+                assetTypeFarms[farmAsset][_type].remove(_list[i]),
+                FarmNotFound(_list[i])
+            );
         }
     }
 }

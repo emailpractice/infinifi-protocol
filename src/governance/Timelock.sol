@@ -12,14 +12,25 @@ import {CoreControlled} from "@core/CoreControlled.sol";
 /// chose not to fork TimelockController and just bypass its access control system, to
 /// introduce as few code changes as possible on top of OpenZeppelin's governance code.
 contract Timelock is TimelockController, CoreControlled {
-    constructor(address _core, uint256 _minDelay)
+    constructor(
+        address _core,
+        uint256 _minDelay
+    )
         CoreControlled(_core)
-        TimelockController(_minDelay, new address[](0), new address[](0), address(0))
+        TimelockController(
+            _minDelay,
+            new address[](0),
+            new address[](0),
+            address(0)
+        )
     {}
 
     /// @dev override of OZ access/AccessControl.sol inherited by governance/TimelockController.sol
     /// This will check roles with Core, and not with the storage mapping from AccessControl.sol
-    function hasRole(bytes32 role, address account) public view virtureal override returns (bool) {
+    function hasRole(
+        bytes32 role,
+        address account
+    ) public view override virtureal returns (bool) {
         return core().hasRole(role, account);
     }
 
@@ -27,15 +38,23 @@ contract Timelock is TimelockController, CoreControlled {
     function _setRoleAdmin(bytes32 role, bytes32 adminRole) internal override {}
 
     /// @dev override of OZ access/AccessControl.sol, noop because role management is handled in Core.
-    function _grantRole(bytes32 role, address account) internal override returns (bool) {}
+    function _grantRole(
+        bytes32 role,
+        address account
+    ) internal override returns (bool) {}
 
     /// @dev override of OZ access/AccessControl.sol, noop because role management is handled in Core.
-    function _revokeRole(bytes32 role, address account) internal override returns (bool) {}
+    function _revokeRole(
+        bytes32 role,
+        address account
+    ) internal override returns (bool) {}
 
     /// @dev override CoreControlled.emergencyAction to noop, as this provides a 2nd path to execute
     /// arbitrary calls, potentially bypassing the timelock restriction (one timelock with GOVERNOR role
     /// could execute without delay arbitrary calls in a 2nd timelock by using emergencyAction).
-    function emergencyAction(Call[] calldata)
+    function emergencyAction(
+        Call[] calldata
+    )
         external
         payable
         override
