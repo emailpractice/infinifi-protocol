@@ -37,13 +37,13 @@ contract MintRedeemControllerUnitTest is Fixture {
         usdc.mint(address(alice), 1000e6);
         vm.startPrank(alice);
         usdc.approve(address(gateway), 1000e6);
-        gateway.mint(alice, 1000e6);          //@seashell alice用mint存錢 拿到一點share
+        gateway.mint(alice, 1000e6); //@seashell alice用mint存錢 拿到一點share
         vm.stopPrank();
 
         // deploy 500 (half) of USDC to a farm
         vm.startPrank(farmManagerAddress);
         {
-            mintController.withdraw(500e6, address(farm1));     //@seashell 不是應該用share存到farm嗎? 而且是用farm去領錢? 不是該使用者call函數自動化的完成嗎?
+            mintController.withdraw(500e6, address(farm1)); //@seashell 不是應該用share存到farm嗎? 而且是用farm去領錢? 不是該使用者call函數自動化的完成嗎?
             farm1.deposit();
         }
         vm.stopPrank();
@@ -62,28 +62,68 @@ contract MintRedeemControllerUnitTest is Fixture {
 
     function testInitialState() public view {
         // check contructor setup & default values for state variables
-        assertEq(mintController.receiptToken(), address(iusd), "Error: mintController.receiptToken() should be iUSD");
-        assertEq(mintController.assetToken(), address(usdc), "Error: mintController.assetToken() should be USDC");
         assertEq(
-            mintController.accounting(), address(accounting), "Error: mintController.accounting() should be accounting"
+            mintController.receiptToken(),
+            address(iusd),
+            "Error: mintController.receiptToken() should be iUSD"
         );
-        assertEq(mintController.minMintAmount(), 1, "Error: mintController.minMintAmount() should be 1");
         assertEq(
-            redeemController.receiptToken(), address(iusd), "Error: redeemController.receiptToken() should be iUSD"
+            mintController.assetToken(),
+            address(usdc),
+            "Error: mintController.assetToken() should be USDC"
         );
-        assertEq(redeemController.assetToken(), address(usdc), "Error: redeemController.assetToken() should be USDC");
+        assertEq(
+            mintController.accounting(),
+            address(accounting),
+            "Error: mintController.accounting() should be accounting"
+        );
+        assertEq(
+            mintController.minMintAmount(),
+            1,
+            "Error: mintController.minMintAmount() should be 1"
+        );
+        assertEq(
+            redeemController.receiptToken(),
+            address(iusd),
+            "Error: redeemController.receiptToken() should be iUSD"
+        );
+        assertEq(
+            redeemController.assetToken(),
+            address(usdc),
+            "Error: redeemController.assetToken() should be USDC"
+        );
         assertEq(
             redeemController.accounting(),
             address(accounting),
             "Error: redeemController.accounting() should be accounting"
         );
-        assertEq(redeemController.minRedemptionAmount(), 1, "Error: redeemController.minRedemptionAmount() should be 1");
+        assertEq(
+            redeemController.minRedemptionAmount(),
+            1,
+            "Error: redeemController.minRedemptionAmount() should be 1"
+        );
 
         // asset & liquidity should be 0 at first
-        assertEq(mintController.assets(), 0, "Error: mintController.assets() should be 0 at first");
-        assertEq(mintController.liquidity(), 0, "Error: mintController.liquidity() should be 0 at first");
-        assertEq(redeemController.assets(), 0, "Error: redeemController.assets() should be 0 at first");
-        assertEq(redeemController.liquidity(), 0, "Error: redeemController.liquidity() should be 0 at first");
+        assertEq(
+            mintController.assets(),
+            0,
+            "Error: mintController.assets() should be 0 at first"
+        );
+        assertEq(
+            mintController.liquidity(),
+            0,
+            "Error: mintController.liquidity() should be 0 at first"
+        );
+        assertEq(
+            redeemController.assets(),
+            0,
+            "Error: redeemController.assets() should be 0 at first"
+        );
+        assertEq(
+            redeemController.liquidity(),
+            0,
+            "Error: redeemController.liquidity() should be 0 at first"
+        );
     }
 
     function testSetMinRedemptionAmountShouldErrorIfNotGovernor() public {
@@ -94,13 +134,23 @@ contract MintRedeemControllerUnitTest is Fixture {
     function testSetMinRedemptionCannotBeZero() public {
         assertEq(redeemController.minRedemptionAmount(), 1);
         vm.prank(parametersAddress);
-        vm.expectRevert(abi.encodeWithSelector(IRedeemController.RedeemAmountTooLow.selector, 0, 1));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IRedeemController.RedeemAmountTooLow.selector,
+                0,
+                1
+            )
+        );
         redeemController.setMinRedemptionAmount(0);
     }
 
     function testSetMinRedemptionCanBeSetByGovernor(uint256 _amount) public {
         _amount = bound(_amount, 1, 1_000e18);
-        assertEq(redeemController.minRedemptionAmount(), 1, "Error: redeemController.minRedemptionAmount() should be 1");
+        assertEq(
+            redeemController.minRedemptionAmount(),
+            1,
+            "Error: redeemController.minRedemptionAmount() should be 1"
+        );
         vm.prank(parametersAddress);
         redeemController.setMinRedemptionAmount(_amount);
         assertEq(
@@ -120,13 +170,17 @@ contract MintRedeemControllerUnitTest is Fixture {
         redeemController.setBeforeRedeemHook(address(this));
     }
 
-    function testSetAfterMintHookCanBeSetByGovernor(address _afterMintHook) public {
+    function testSetAfterMintHookCanBeSetByGovernor(
+        address _afterMintHook
+    ) public {
         vm.prank(governorAddress);
         mintController.setAfterMintHook(_afterMintHook);
         assertEq(mintController.afterMintHook(), _afterMintHook);
     }
 
-    function testSetBeforeRedeemHookCanBeSetByGovernor(address _beforeRedeemHook) public {
+    function testSetBeforeRedeemHookCanBeSetByGovernor(
+        address _beforeRedeemHook
+    ) public {
         vm.prank(governorAddress);
         redeemController.setBeforeRedeemHook(_beforeRedeemHook);
         assertEq(redeemController.beforeRedeemHook(), _beforeRedeemHook);
@@ -139,7 +193,11 @@ contract MintRedeemControllerUnitTest is Fixture {
 
     function testSetMinMintCanBeSetByGovernor(uint256 _amount) public {
         _amount = bound(_amount, 1, 1_000e18);
-        assertEq(mintController.minMintAmount(), 1, "Error: mintController.minMintAmount() should be 1 at default");
+        assertEq(
+            mintController.minMintAmount(),
+            1,
+            "Error: mintController.minMintAmount() should be 1 at default"
+        );
         vm.prank(parametersAddress);
         mintController.setMinMintAmount(_amount);
         assertEq(
@@ -150,13 +208,26 @@ contract MintRedeemControllerUnitTest is Fixture {
     }
 
     function testSetMinMintCannotBeZero() public {
-        assertEq(mintController.minMintAmount(), 1, "Error: mintController.minMintAmount() should be 1 at default");
+        assertEq(
+            mintController.minMintAmount(),
+            1,
+            "Error: mintController.minMintAmount() should be 1 at default"
+        );
         vm.prank(parametersAddress);
-        vm.expectRevert(abi.encodeWithSelector(IMintController.MintAmountTooLow.selector, 0, 1));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IMintController.MintAmountTooLow.selector,
+                0,
+                1
+            )
+        );
         mintController.setMinMintAmount(0);
     }
 
-    function testAssetToReceipt(uint256 _amountAsset, uint256 _iusdPrice) public {
+    function testAssetToReceipt(
+        uint256 _amountAsset,
+        uint256 _iusdPrice
+    ) public {
         _amountAsset = bound(_amountAsset, 0.1e6, 1_000_000_000e6);
         _iusdPrice = bound(_iusdPrice, 0.1e18, 1e18);
         uint256 assetPrice = 1e30;
@@ -169,7 +240,8 @@ contract MintRedeemControllerUnitTest is Fixture {
         // if price is 1:1, 1 asset gives 1 receipt
         // if the iUSD price is < 1, then 1 asset gives more than 1 receipt
         uint256 amountReceipt = mintController.assetToReceipt(_amountAsset);
-        uint256 expectedAmount = _amountAsset * 1e18 / (_iusdPrice * 1e18 / assetPrice);
+        uint256 expectedAmount = (_amountAsset * 1e18) /
+            ((_iusdPrice * 1e18) / assetPrice);
         assertEq(
             amountReceipt,
             expectedAmount,
@@ -187,7 +259,10 @@ contract MintRedeemControllerUnitTest is Fixture {
         }
     }
 
-    function testReceiptToAsset(uint256 _amountReceipt, uint256 _iusdPrice) public {
+    function testReceiptToAsset(
+        uint256 _amountReceipt,
+        uint256 _iusdPrice
+    ) public {
         _amountReceipt = bound(_amountReceipt, 0.1e18, 1_000_000_000e18);
         _iusdPrice = bound(_iusdPrice, 0.1e18, 1e18);
         uint256 assetPrice = 1e30;
@@ -197,7 +272,8 @@ contract MintRedeemControllerUnitTest is Fixture {
         oracleIusd.setPrice(_iusdPrice);
 
         uint256 amountAsset = redeemController.receiptToAsset(_amountReceipt);
-        uint256 expectedAmount = _amountReceipt * (_iusdPrice * 1e18 / assetPrice) / 1e18;
+        uint256 expectedAmount = (_amountReceipt *
+            ((_iusdPrice * 1e18) / assetPrice)) / 1e18;
         assertEq(
             amountAsset,
             expectedAmount,
@@ -217,7 +293,11 @@ contract MintRedeemControllerUnitTest is Fixture {
 
     function testAssetsWithoutPendingClaims() public {
         // check that assets() returns the total assets of the redeemController
-        assertEq(redeemController.assets(), 0, "Error: redeemController.assets() should be 0 at first");
+        assertEq(
+            redeemController.assets(),
+            0,
+            "Error: redeemController.assets() should be 0 at first"
+        );
 
         // we airdrop 1000 USDC to the redeemController
         usdc.mint(address(redeemController), 1000e6);
@@ -253,7 +333,10 @@ contract MintRedeemControllerUnitTest is Fixture {
 
         // move funds from mintController to redeemController
         vm.startPrank(farmManagerAddress);
-        mintController.withdraw(usdc.balanceOf(address(mintController)), address(redeemController));
+        mintController.withdraw(
+            usdc.balanceOf(address(mintController)),
+            address(redeemController)
+        );
         vm.stopPrank();
 
         scenarioAliceRedeemsAllHerIUSD();
@@ -288,11 +371,15 @@ contract MintRedeemControllerUnitTest is Fixture {
         usdc.mint(address(this), 100e6);
         usdc.approve(address(gateway), 100e6);
 
-        vm.expectRevert(abi.encodeWithSelector(Pausable.EnforcedPause.selector));
+        vm.expectRevert(
+            abi.encodeWithSelector(Pausable.EnforcedPause.selector)
+        );
         gateway.mint(address(this), 100e6);
     }
 
-    function testMintShouldRevertIfAssetAmountIsLessThanMinMintAmount(uint256 _mintAmount) public {
+    function testMintShouldRevertIfAssetAmountIsLessThanMinMintAmount(
+        uint256 _mintAmount
+    ) public {
         _mintAmount = bound(_mintAmount, 1, 1_000_000e6);
         vm.prank(parametersAddress);
         mintController.setMinMintAmount(_mintAmount + 1);
@@ -300,7 +387,13 @@ contract MintRedeemControllerUnitTest is Fixture {
         usdc.mint(address(this), _mintAmount);
         usdc.approve(address(gateway), _mintAmount);
 
-        vm.expectRevert(abi.encodeWithSelector(IMintController.MintAmountTooLow.selector, _mintAmount, _mintAmount + 1));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IMintController.MintAmountTooLow.selector,
+                _mintAmount,
+                _mintAmount + 1
+            )
+        );
         gateway.mint(address(this), _mintAmount);
     }
 
@@ -318,7 +411,8 @@ contract MintRedeemControllerUnitTest is Fixture {
         usdc.approve(address(gateway), _mintAmount);
         uint256 receiptAmount = gateway.mint(alice, _mintAmount);
         vm.stopPrank();
-        uint256 expectedReceiptAmount = _mintAmount * 1e12 * 1e18 / IUSD_ORACLE_PRICE; // account for decimal correction and oracle price
+        uint256 expectedReceiptAmount = (_mintAmount * 1e12 * 1e18) /
+            IUSD_ORACLE_PRICE; // account for decimal correction and oracle price
         assertEq(
             receiptAmount,
             expectedReceiptAmount,
@@ -335,7 +429,9 @@ contract MintRedeemControllerUnitTest is Fixture {
             "Error: mintController does not have the correct amount of USDC"
         );
         assertEq(
-            afterMintHookCalled, _setupAfterMintHook, "Error: mintController.mint() does not call the afterMintHook"
+            afterMintHookCalled,
+            _setupAfterMintHook,
+            "Error: mintController.mint() does not call the afterMintHook"
         );
     }
 
@@ -346,11 +442,15 @@ contract MintRedeemControllerUnitTest is Fixture {
         usdc.mint(address(this), 100e6);
         usdc.approve(address(gateway), 100e6);
 
-        vm.expectRevert(abi.encodeWithSelector(Pausable.EnforcedPause.selector));
+        vm.expectRevert(
+            abi.encodeWithSelector(Pausable.EnforcedPause.selector)
+        );
         gateway.mintAndStake(address(this), 100e6);
     }
 
-    function testMintAndStakeShouldRevertIfAssetAmountIsLessThanMinMintAmount(uint256 _mintAmount) public {
+    function testMintAndStakeShouldRevertIfAssetAmountIsLessThanMinMintAmount(
+        uint256 _mintAmount
+    ) public {
         _mintAmount = bound(_mintAmount, 1, 1_000_000e6);
         vm.prank(parametersAddress);
         mintController.setMinMintAmount(_mintAmount + 1);
@@ -358,7 +458,13 @@ contract MintRedeemControllerUnitTest is Fixture {
         usdc.mint(address(this), _mintAmount);
         usdc.approve(address(gateway), _mintAmount);
 
-        vm.expectRevert(abi.encodeWithSelector(IMintController.MintAmountTooLow.selector, _mintAmount, _mintAmount + 1));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IMintController.MintAmountTooLow.selector,
+                _mintAmount,
+                _mintAmount + 1
+            )
+        );
         gateway.mintAndStake(address(this), _mintAmount);
     }
 
@@ -371,13 +477,18 @@ contract MintRedeemControllerUnitTest is Fixture {
         usdc.approve(address(gateway), _mintAmount);
         uint256 receiptAmount = gateway.mintAndStake(alice, _mintAmount);
         vm.stopPrank();
-        uint256 expectedReceiptAmount = _mintAmount * 1e12 * 1e18 / IUSD_ORACLE_PRICE; // account for decimal correction and oracle price
+        uint256 expectedReceiptAmount = (_mintAmount * 1e12 * 1e18) /
+            IUSD_ORACLE_PRICE; // account for decimal correction and oracle price
         assertEq(
             receiptAmount,
             expectedReceiptAmount,
             "Error: gateway.mintAndStake() does not return the correct amount of receipt"
         );
-        assertEq(iusd.balanceOf(alice), 0, "Error: Alice's iUSD balance should be 0");
+        assertEq(
+            iusd.balanceOf(alice),
+            0,
+            "Error: Alice's iUSD balance should be 0"
+        );
         assertEq(
             siusd.balanceOf(alice),
             expectedReceiptAmount,
@@ -388,7 +499,11 @@ contract MintRedeemControllerUnitTest is Fixture {
             expectedReceiptAmount,
             "Error: sUSD total assets do not match the expected receipt amount"
         );
-        assertEq(iusd.balanceOf(address(mintController)), 0, "Error: mintController's iUSD balance should be 0");
+        assertEq(
+            iusd.balanceOf(address(mintController)),
+            0,
+            "Error: mintController's iUSD balance should be 0"
+        );
         assertEq(
             iusd.balanceOf(address(siusd)),
             expectedReceiptAmount,
@@ -403,11 +518,15 @@ contract MintRedeemControllerUnitTest is Fixture {
         _mintBackedReceiptTokens(address(this), 100e18);
         iusd.approve(address(gateway), 100e18);
 
-        vm.expectRevert(abi.encodeWithSelector(Pausable.EnforcedPause.selector));
+        vm.expectRevert(
+            abi.encodeWithSelector(Pausable.EnforcedPause.selector)
+        );
         gateway.redeem(address(this), 100e18);
     }
 
-    function testRedeemWhenAmountTooLowShouldRevert(uint256 _redeemAmount) public {
+    function testRedeemWhenAmountTooLowShouldRevert(
+        uint256 _redeemAmount
+    ) public {
         _redeemAmount = bound(_redeemAmount, 1, 1_000_000e6);
         vm.prank(parametersAddress);
         redeemController.setMinRedemptionAmount(_redeemAmount + 1);
@@ -416,13 +535,19 @@ contract MintRedeemControllerUnitTest is Fixture {
         iusd.approve(address(gateway), _redeemAmount);
 
         vm.expectRevert(
-            abi.encodeWithSelector(IRedeemController.RedeemAmountTooLow.selector, _redeemAmount, _redeemAmount + 1)
+            abi.encodeWithSelector(
+                IRedeemController.RedeemAmountTooLow.selector,
+                _redeemAmount,
+                _redeemAmount + 1
+            )
         );
         gateway.redeem(address(this), _redeemAmount);
     }
 
     /// @notice mint 1000 iUSD and then redeem 500 iUSD
-    function testRedeemWithEnoughLiquidityShouldSendDirectly(bool _setupBeforeRedeemHook) public {
+    function testRedeemWithEnoughLiquidityShouldSendDirectly(
+        bool _setupBeforeRedeemHook
+    ) public {
         usdc.mint(address(alice), 1000e6);
 
         if (_setupBeforeRedeemHook) {
@@ -437,19 +562,28 @@ contract MintRedeemControllerUnitTest is Fixture {
 
         // move funds from mintController to redeemController
         vm.startPrank(farmManagerAddress);
-        mintController.withdraw(usdc.balanceOf(address(mintController)), address(redeemController));
+        mintController.withdraw(
+            usdc.balanceOf(address(mintController)),
+            address(redeemController)
+        );
         vm.stopPrank();
 
         // redeem 500 iUSD
         vm.startPrank(alice);
         iusd.approve(address(gateway), 500e18);
-        uint256 expectedAssetAmount = 500e6 * IUSD_ORACLE_PRICE / 1e18;
+        uint256 expectedAssetAmount = (500e6 * IUSD_ORACLE_PRICE) / 1e18;
         uint256 assetAmount = gateway.redeem(alice, 500e18);
         vm.stopPrank();
         assertEq(
-            assetAmount, expectedAssetAmount, "Error: gateway.redeem() does not return the correct amount of asset"
+            assetAmount,
+            expectedAssetAmount,
+            "Error: gateway.redeem() does not return the correct amount of asset"
         );
-        assertEq(usdc.balanceOf(alice), expectedAssetAmount, "Error: Alice does not have the correct amount of USDC");
+        assertEq(
+            usdc.balanceOf(alice),
+            expectedAssetAmount,
+            "Error: Alice does not have the correct amount of USDC"
+        );
         assertEq(
             beforeRedeemHookCalled,
             _setupBeforeRedeemHook,
@@ -462,17 +596,27 @@ contract MintRedeemControllerUnitTest is Fixture {
 
         // move funds from mintController to redeemController
         vm.startPrank(farmManagerAddress);
-        mintController.withdraw(usdc.balanceOf(address(mintController)), address(redeemController));
+        mintController.withdraw(
+            usdc.balanceOf(address(mintController)),
+            address(redeemController)
+        );
         vm.stopPrank();
 
         uint256 iusdTotalSupplyBefore = iusd.totalSupply();
         scenarioAliceRedeemsAllHerIUSD();
 
         // after the redeem, alice should have received 500 USDC
-        assertEq(usdc.balanceOf(alice), 500e6, "Error: Alice does not have the correct amount of USDC");
+        assertEq(
+            usdc.balanceOf(alice),
+            500e6,
+            "Error: Alice does not have the correct amount of USDC"
+        );
         // and the redeemController should have burned 500 / IUSD_ORACLE_PRICE iUSD
         // meaning that the total supply of iUSD should be reduced by 500 / IUSD_ORACLE_PRICE
-        assertEq(iusd.totalSupply(), iusdTotalSupplyBefore - 500e18 * 1e18 / IUSD_ORACLE_PRICE);
+        assertEq(
+            iusd.totalSupply(),
+            iusdTotalSupplyBefore - (500e18 * 1e18) / IUSD_ORACLE_PRICE
+        );
         // balance of redeemController should be 0 USDC
         assertEq(
             usdc.balanceOf(address(redeemController)),
@@ -481,12 +625,14 @@ contract MintRedeemControllerUnitTest is Fixture {
         );
         // there should be a ticket in the queue for the remaining iUSD
         assertEq(
-            redeemController.queueLength(), 1, "Error: There should be 1 ticket in the queue for the remaining iUSD"
+            redeemController.queueLength(),
+            1,
+            "Error: There should be 1 ticket in the queue for the remaining iUSD"
         );
         // total enqueued redemptions should be 500 / IUSD_ORACLE_PRICE iUSD
         assertEq(
             redeemController.totalEnqueuedRedemptions(),
-            500e18 * 1e18 / IUSD_ORACLE_PRICE,
+            (500e18 * 1e18) / IUSD_ORACLE_PRICE,
             "Error: Total enqueued redemptions should be 500 / IUSD_ORACLE_PRICE iUSD"
         );
     }
@@ -496,7 +642,10 @@ contract MintRedeemControllerUnitTest is Fixture {
 
         // move funds from mintController to redeemController
         vm.startPrank(farmManagerAddress);
-        mintController.withdraw(usdc.balanceOf(address(mintController)), address(redeemController));
+        mintController.withdraw(
+            usdc.balanceOf(address(mintController)),
+            address(redeemController)
+        );
         vm.stopPrank();
 
         scenarioAliceRedeemsAllHerIUSD();
@@ -515,7 +664,11 @@ contract MintRedeemControllerUnitTest is Fixture {
             1000e6,
             "Error: redeemController does not have the correct amount of USDC after deposit"
         );
-        assertEq(redeemController.assets(), 500e6, "Error: redeemController does not have the correct amount of assets");
+        assertEq(
+            redeemController.assets(),
+            500e6,
+            "Error: redeemController does not have the correct amount of assets"
+        );
         assertEq(
             redeemController.totalPendingClaims(),
             500e6,
@@ -549,10 +702,22 @@ contract MintRedeemControllerUnitTest is Fixture {
             "Error: redeemController does not have the correct amount of USDC after claiming redemption"
         );
         // and the total enqueued redemptions should be 0
-        assertEq(redeemController.totalEnqueuedRedemptions(), 0, "Error: Total enqueued redemptions should be 0");
-        assertEq(redeemController.totalPendingClaims(), 0, "Error: Total pending claims should be 0");
+        assertEq(
+            redeemController.totalEnqueuedRedemptions(),
+            0,
+            "Error: Total enqueued redemptions should be 0"
+        );
+        assertEq(
+            redeemController.totalPendingClaims(),
+            0,
+            "Error: Total pending claims should be 0"
+        );
         // and the queue should be empty
-        assertEq(redeemController.queueLength(), 0, "Error: Queue should be empty");
+        assertEq(
+            redeemController.queueLength(),
+            0,
+            "Error: Queue should be empty"
+        );
     }
 
     function testWithdraw() public {
