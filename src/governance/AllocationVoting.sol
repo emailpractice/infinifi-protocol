@@ -63,6 +63,7 @@ contract AllocationVoting is CoreControlled {
 
     mapping(address farm => FarmWeightData) public farmWeightData;
     mapping(address user => mapping(uint32 unwindingEpochs => uint32 epoch)) public lastVoteEpoch;
+        // 這個map長這樣[user, (unwnidingEpoch, Epoch)]
 
     constructor(address _core, address _lockingController, address _farmRegistry) CoreControlled(_core) {
         lockingController = _lockingController;
@@ -74,7 +75,8 @@ contract AllocationVoting is CoreControlled {
     /// @return uint256 The weight of the farm for the given epoch
     function getVote(address _farm) external view returns (uint256) {
         return _getFarmWeight(farmWeightData[_farm], uint32(block.timestamp.epoch()));
-    }
+    }       //farmWeightData 是一個map 他是(地址, struct)  struct 是 Farmdata (大寫F) 
+
 
     /// @notice Returns the vote weights for the given farm type (liquid or illiquid)
     /// @param _farmType Determine for which farm type subset to return votes for
@@ -82,9 +84,9 @@ contract AllocationVoting is CoreControlled {
     /// @return uint256[] farms percentage
     /// @return uint256 total power
     function getVoteWeights(uint256 _farmType) external view returns (address[] memory, uint256[] memory, uint256) {
-        address[] memory farms = FarmRegistry(farmRegistry).getTypeFarms(_farmType);
+        address[] memory farms = FarmRegistry(farmRegistry).getTypeFarms(_farmType);  //illiquid 、 liquid
         (uint256[] memory weights, uint256 totalPower) = _getVoteWeights(farms);
-        return (farms, weights, totalPower);
+        return (farms, weights, totalPower); //farms - weight 一一對應    比如回傳 illiquid farm 列表裡的每組資料
     }
 
     function getAssetVoteWeights(address _asset, uint256 _farmType)
@@ -136,9 +138,11 @@ contract AllocationVoting is CoreControlled {
     /// @param _data The farm weight data
     /// @param _epoch The epoch of the vote
     /// @return uint256 The weight of the farm for the given epoch
+    //查個別農場  return 一個weight 
     function _getFarmWeight(FarmWeightData memory _data, uint32 _epoch) internal pure returns (uint256) {
+        //FarmWeightData 是struct ( 上次vote時間 epoch, current weight, next weight )
         // if last vote was in current epoch, return the currentWeight
-        if (_data.epoch == _epoch) {
+        if (_data.epoch == _epoch) {  //data.epoch 上次 vote 時間  ==  現epoch
             return _data.currentWeight;
         }
         // if last vote was in previous epoch, return the nextWeight
@@ -193,6 +197,7 @@ contract AllocationVoting is CoreControlled {
         require(weightAllocated == _userWeight || weightAllocated == 0, InvalidWeights(_userWeight, weightAllocated));
     }
 
+
     function _getVoteWeights(address[] memory _farms) internal view returns (uint256[] memory, uint256) {
         uint32 epoch = uint32(block.timestamp.epoch());
         uint256[] memory weights = new uint256[](_farms.length);
@@ -200,8 +205,8 @@ contract AllocationVoting is CoreControlled {
         uint256 totalPower = 0;
 
         for (uint256 i = 0; i < _farms.length; i++) {
-            weights[i] = _getFarmWeight(farmWeightData[_farms[i]], epoch);
-            totalPower += weights[i];
+            weights[i] = _getFarmWeight(farmWeightData[_farms[i]], epoch); //查個別農場的函數
+            totalPower += weights[i]; //權重的總和
         }
 
         return (weights, totalPower);
