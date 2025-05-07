@@ -338,7 +338,7 @@ contract YieldSharing is
             //像銀行一樣，可以發錢或燒錢來平衡市價
             return;
         } //seashell safetybufer不夠補滿的話，它就寧願完全不補了，讓用戶承受損失
-        //可能代表著只有在大額損失的時候會出動，其他時候讓用戶承擔風險。
+        //可能代表著只有在小額損失的時候會出動，其他時候讓用戶承擔風險。
 
         // first, apply losses to locking users
         uint256 lockingReceiptTokens = LockingController(lockingModule)
